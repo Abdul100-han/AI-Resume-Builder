@@ -8,9 +8,17 @@ function Header() {
              <Link to={'/dashboard'}>
             <img src='/logo.svg' className='cursor-pointer' width={100} height={100} />
             </Link>
-            <Link to={'/dashboard'}>
-                <Button variant="outline">Dashboard</Button>
-            </Link>
+            <div className='flex gap-2'>
+                <Link to={'/dashboard'}>
+                    <Button variant="outline">Dashboard</Button>
+                </Link>
+                <Link to={'/jobs'}>
+                    <Button variant="outline">Job Matches</Button>
+                </Link>
+                <Link to={'/admin'}>
+                    <Button>Admin</Button>
+                </Link>
+            </div>
         </div>
     )
 }

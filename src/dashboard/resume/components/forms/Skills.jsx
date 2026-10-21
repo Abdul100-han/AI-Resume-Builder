@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { LoaderCircle } from 'lucide-react'
 import { ResumeInfoContext } from '@/context/ResumeInfoContext'
 import GlobalApi from './../../../../../service/GlobalApi'
+import BackendApi from './../../../../../service/BackendApi'
+import { getLocalUser } from '@/lib/localUser'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 function Skills() {
@@ -44,20 +46,40 @@ function Skills() {
     const onSave=()=>{
 
         setLoading(true);
+        const skills = skillsList.map(({ id, ...rest }) => rest)
         const data={
             data:{
-                skills:skillsList.map(({ id, ...rest }) => rest)
+                skills
             }
         }
 
-        GlobalApi.UpdateResumeDetail(resumeId,data)
-        .then(resp=>{
-            console.log(resp);
-            setLoading(false);
-            toast('Details updated !')
-        },(error)=>{
-            setLoading(false);
-            toast('Server Error, Try again!')
+        const user = getLocalUser()
+        const saveStrapi = GlobalApi.UpdateResumeDetail(resumeId, data)
+        const saveMatchProfile = BackendApi.syncResume({
+            email: user.email,
+            name: user.name,
+            resumeId,
+            title: resumeInfo?.title || 'My Resume',
+            themeColor: resumeInfo?.themeColor,
+            firstName: resumeInfo?.firstName,
+            lastName: resumeInfo?.lastName,
+            jobTitle: resumeInfo?.jobTitle,
+            address: resumeInfo?.address,
+            phone: resumeInfo?.phone,
+            contactEmail: resumeInfo?.email,
+            summery: resumeInfo?.summery,
+            experience: resumeInfo?.Experience || resumeInfo?.experience || [],
+            education: resumeInfo?.education || [],
+            skills,
+        }).catch(() => null)
+
+        Promise.allSettled([saveStrapi, saveMatchProfile]).then((results) => {
+            setLoading(false)
+            if (results[0].status === 'fulfilled' || results[1].value) {
+                toast('Details updated !')
+            } else {
+                toast('Server Error, Try again!')
+            }
         })
     }
 
