@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { v4 as uuidv4 } from 'uuid';
 import GlobalApi from './../../../service/GlobalApi'
-import { useUser } from '@clerk/clerk-react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { getLocalUser } from '@/lib/localUser'
 
 
 
@@ -21,7 +21,7 @@ function AddResume() {
 
     const [openDialog,setOpenDialog]=useState(false)
     const [resumeTitle,setResumeTitle]=useState();
-    const {user}=useUser();
+    const user = getLocalUser();
     const [loading,setLoading]=useState(false);
     const navigation=useNavigate();
     const onCreate=async()=>{
@@ -31,8 +31,8 @@ function AddResume() {
             data:{
                 title:resumeTitle,
                 resumeId:uuid,
-                userEmail:user?.primaryEmailAddress?.emailAddress,
-                userName:user?.fullName
+                userEmail:user.email,
+                userName:user.name
             }
         }
 

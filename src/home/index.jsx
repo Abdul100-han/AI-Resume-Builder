@@ -1,5 +1,4 @@
 import Header from '@/components/custom/Header'
-import { UserButton } from '@clerk/clerk-react'
 import { AtomIcon, Edit, Share2 } from 'lucide-react'
 import React from 'react'
 
@@ -119,7 +118,7 @@ function Home() {
 
     <div className="mt-12 text-center">
       <a
-        href="/sign-in"
+        href="/dashboard"
         className="inline-block rounded bg-pink-600 px-12 py-3 text-sm font-medium text-white transition hover:bg-pink-700 focus:outline-none focus:ring focus:ring-yellow-400"
       >
         Get Started Today
