@@ -1,76 +1,59 @@
 import JobVacancy from '../models/JobVacancy.js'
 import Resume from '../models/Resume.js'
 import User from '../models/User.js'
+import { skillsFromSummary } from '../lib/studentProfile.js'
+import { rankJobs, WEIGHTS } from '../lib/nlpMatcher.js'
 
-async function skillsForEmail(email) {
+const skillName = (skill) => String(typeof skill === 'string' ? skill : skill?.name || '').trim()
+
+// Collect everything the NLP matcher can learn about a student:
+// skills (latest CV + account + profile summary), department, target roles and free text.
+async function studentForEmail(email) {
   const user = await User.findOne({ email })
-  if (!user) return []
+  if (!user) return { skills: [], department: '', targetRoles: '', profileText: '' }
 
   const latest = await Resume.findOne({ user: user._id }).sort({ updatedAt: -1 })
-  if (latest?.skills?.length) return latest.skills
-  return user.skills || []
-}
+  const profile = user.studentProfile || {}
 
-const normalize = (value) =>
-  String(value || '')
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9+#.\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  const skills = [
+    ...(latest?.skills || []),
+    ...(user.skills || []),
+    ...skillsFromSummary(profile.skillsSummary),
+  ].map(skillName).filter(Boolean)
+  const uniqueSkills = [...new Map(skills.map((s) => [s.toLowerCase(), s])).values()]
 
-const tokensMatch = (left, right) => {
-  if (!left || !right) return false
-  if (left === right) return true
-  return left.includes(right) || right.includes(left)
-}
+  const education = [...(latest?.education || []), ...(user.education || [])]
+    .map((e) => [e.degree, e.major, e.universityName, e.description].join(' '))
+  const experience = [...(latest?.experience || []), ...(user.experience || [])]
+    .map((e) => [e.title, e.companyName, e.workSummery].join(' '))
 
-export function calculateMatchScore(userSkills = [], requiredSkills = []) {
-  const normalizedUser = userSkills
-    .map((skill) => normalize(typeof skill === 'string' ? skill : skill?.name))
-    .filter(Boolean)
-
-  const required = requiredSkills.map((skill) => String(skill).trim()).filter(Boolean)
-  const matchedSkills = []
-  const missingSkills = []
-
-  for (const skill of required) {
-    const key = normalize(skill)
-    const found = normalizedUser.some((userSkill) => tokensMatch(userSkill, key))
-    if (found) matchedSkills.push(skill)
-    else missingSkills.push(skill)
+  return {
+    skills: uniqueSkills,
+    department: profile.department || '',
+    targetRoles: [profile.targetRoles, latest?.jobTitle, user.personalInfo?.jobTitle].filter(Boolean).join(', '),
+    profileText: [latest?.summery, ...education, ...experience].filter(Boolean).join(' . '),
   }
+}
 
-  const score = required.length
-    ? Math.round((matchedSkills.length / required.length) * 100)
-    : 0
-
-  return { score, matchedSkills, missingSkills }
+const requireEmail = (req, res) => {
+  const email = req.query.email?.toLowerCase().trim()
+  if (!email) res.status(400).json({ message: 'email is required' })
+  return email
 }
 
 export const matchJobs = async (req, res) => {
   try {
-    const email = req.query.email?.toLowerCase().trim()
-    if (!email) {
-      return res.status(400).json({ message: 'email is required' })
-    }
+    const email = requireEmail(req, res)
+    if (!email) return undefined
 
-    const skills = await skillsForEmail(email)
-    const jobs = await JobVacancy.find().sort({ postedDate: -1 })
-
-    const results = jobs.map((job) => {
-      const match = calculateMatchScore(skills, job.requiredSkills)
-      return {
-        job,
-        ...match,
-      }
-    })
-
-    results.sort((a, b) => b.score - a.score)
+    const student = await studentForEmail(email)
+    const jobs = await JobVacancy.find().sort({ postedDate: -1 }).lean()
 
     return res.json({
-      skills: skills.map((skill) => skill.name).filter(Boolean),
-      results,
+      skills: student.skills,
+      department: student.department,
+      weights: WEIGHTS,
+      results: rankJobs(student, jobs),
     })
   } catch (error) {
     return res.status(500).json({ message: error.message })
@@ -79,19 +62,20 @@ export const matchJobs = async (req, res) => {
 
 export const matchOneJob = async (req, res) => {
   try {
-    const email = req.query.email?.toLowerCase().trim()
-    if (!email) {
-      return res.status(400).json({ message: 'email is required' })
-    }
+    const email = requireEmail(req, res)
+    if (!email) return undefined
 
-    const job = await JobVacancy.findById(req.params.id)
+    const job = await JobVacancy.findById(req.params.id).lean()
     if (!job) {
       return res.status(404).json({ message: 'Job vacancy not found' })
     }
 
-    const skills = await skillsForEmail(email)
-    const match = calculateMatchScore(skills, job.requiredSkills)
-    return res.json({ job, skills: skills.map((skill) => skill.name), ...match })
+    // IDF is still computed over every vacancy so scores agree with the list view.
+    const student = await studentForEmail(email)
+    const jobs = await JobVacancy.find().lean()
+    const result = rankJobs(student, jobs).find((r) => String(r.job._id) === String(job._id))
+
+    return res.json({ skills: student.skills, ...result })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
