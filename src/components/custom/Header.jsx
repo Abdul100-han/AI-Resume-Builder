@@ -10,6 +10,9 @@ function Header() {
                     <img src='/logo.svg' className='cursor-pointer' width={100} height={100} alt='AI Resume Builder' />
                 </Link>
                 <div className='flex flex-wrap justify-end gap-2'>
+                    <Link to={'/profile'}>
+                        <Button>Student Profile</Button>
+                    </Link>
                     <Link to={'/dashboard'}>
                         <Button variant="outline">Dashboard</Button>
                     </Link>

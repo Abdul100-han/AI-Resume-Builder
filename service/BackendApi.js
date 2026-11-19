@@ -22,6 +22,8 @@ const BackendApi = {
   deleteResume: (id, email) => api.delete(`/api/resumes/${id}`, { params: { email } }),
   syncResume: (data) => api.put('/api/resumes/sync', data),
   getJobMatches: (email) => api.get('/api/match', { params: { email } }),
+  getProfile: (email) => api.get('/api/profile', { params: { email } }),
+  saveProfile: (data) => api.put('/api/profile', data),
 }
 
 export default BackendApi

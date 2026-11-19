@@ -9,6 +9,7 @@ import EditResume from './dashboard/resume/[resumeId]/edit/index.jsx'
 import ViewResume from './my-resume/[resumeId]/view/index.jsx'
 import AdminDashboard from './admin/index.jsx'
 import JobMatches from './jobs/index.jsx'
+import StudentProfile from './profile/index.jsx'
 
 const router=createBrowserRouter([
   {
@@ -21,6 +22,10 @@ const router=createBrowserRouter([
       {
         path:'/dashboard',
         element:<Dashboard/>
+      },
+      {
+        path:'/profile',
+        element:<StudentProfile/>
       },
       {
         path:'/dashboard/resume/:resumeId/edit',

@@ -35,7 +35,7 @@ function Home() {
               A resume that reads like the role you want.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-[#3d524c]">
-              Write a clear CV, shape it with AI, and see how closely your skills match the jobs an administrator has posted.
+              Write a clear CV for final-year students and recent graduates of Kano State Polytechnic, then see how closely your skills match the jobs an administrator has posted.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -44,6 +44,12 @@ function Home() {
               >
                 Build your resume
                 <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                to="/profile"
+                className="inline-flex items-center justify-center rounded-full border border-primary/20 bg-white px-6 py-3 text-sm font-semibold text-[#16312b] transition hover:border-primary/40"
+              >
+                Student profile
               </Link>
               <Link
                 to="/jobs"

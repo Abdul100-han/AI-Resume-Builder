@@ -34,6 +34,24 @@ const skillSchema = new mongoose.Schema(
   { _id: false }
 )
 
+const studentProfileSchema = new mongoose.Schema(
+  {
+    fullName: String,
+    contactEmail: String,
+    institution: { type: String, default: 'Kano State Polytechnic' },
+    department: String,
+    academicStatus: {
+      type: String,
+      enum: ['Final-Year Student', 'Recent Graduate', ''],
+      default: '',
+    },
+    graduationYear: String,
+    targetRoles: String,
+    skillsSummary: String,
+  },
+  { _id: false }
+)
+
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -60,6 +78,10 @@ const userSchema = new mongoose.Schema(
     education: { type: [educationSchema], default: [] },
     experience: { type: [experienceSchema], default: [] },
     skills: { type: [skillSchema], default: [] },
+    studentProfile: {
+      type: studentProfileSchema,
+      default: () => ({ institution: 'Kano State Polytechnic' }),
+    },
   },
   { timestamps: true }
 )

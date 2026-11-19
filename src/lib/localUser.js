@@ -17,3 +17,14 @@ export function getLocalUser() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
   return user
 }
+
+export function saveLocalUser(updates) {
+  const current = getLocalUser()
+  const next = {
+    ...current,
+    ...updates,
+    email: current.email,
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  return next
+}

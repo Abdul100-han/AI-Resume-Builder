@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import mongoose from 'mongoose'
 import Resume from '../models/Resume.js'
 import User from '../models/User.js'
+import { profileSeed } from '../lib/studentProfile.js'
 
 const cleanSkills = (skills = []) =>
   (Array.isArray(skills) ? skills : [])
@@ -77,7 +78,19 @@ const mirrorStudent = async (user, resume, body) => {
       jobTitle: resume.jobTitle,
     }
     const fullName = [resume.firstName, resume.lastName].filter(Boolean).join(' ').trim()
-    if (fullName) user.name = fullName
+    const profile = { ...(user.studentProfile?.toObject?.() || user.studentProfile || {}) }
+    if (fullName) {
+      user.name = fullName
+      profile.fullName = fullName
+    }
+    user.studentProfile = profile
+    changed = true
+  }
+
+  if (body.email !== undefined && resume.email) {
+    const profile = { ...(user.studentProfile?.toObject?.() || user.studentProfile || {}) }
+    profile.contactEmail = resume.email
+    user.studentProfile = profile
     changed = true
   }
 
@@ -93,14 +106,21 @@ export const createResume = async (req, res) => {
     }
 
     const user = await findOrCreateStudent(email, req.body.name)
+    const seed = profileSeed(user)
     const resume = await Resume.create({
       user: user._id,
       title,
       resumeId: randomUUID(),
       themeColor: '#0f6b5e',
+      firstName: seed?.firstName,
+      lastName: seed?.lastName,
+      jobTitle: seed?.jobTitle,
+      address: seed?.address,
+      email: seed?.email,
+      summery: seed?.summery,
       experience: [],
-      education: [],
-      skills: [],
+      education: seed?.education || [],
+      skills: seed?.skills || [],
     })
 
     return res.status(201).json(resume)

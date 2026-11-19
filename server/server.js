@@ -7,6 +7,7 @@ import authRoutes from './routes/authRoutes.js'
 import jobRoutes from './routes/jobRoutes.js'
 import resumeRoutes from './routes/resumeRoutes.js'
 import matchRoutes from './routes/matchRoutes.js'
+import profileRoutes from './routes/profileRoutes.js'
 
 dotenv.config()
 
@@ -20,6 +21,7 @@ app.get('/api/health', (req, res) => {
 })
 
 app.use('/api/auth', authRoutes)
+app.use('/api/profile', profileRoutes)
 app.use('/api/jobs', jobRoutes)
 app.use('/api/resumes', resumeRoutes)
 app.use('/api/match', matchRoutes)
