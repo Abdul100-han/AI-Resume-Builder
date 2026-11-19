@@ -10,10 +10,10 @@ import {
   } from "@/components/ui/dialog"
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { v4 as uuidv4 } from 'uuid';
-import GlobalApi from './../../../service/GlobalApi'
+import BackendApi from './../../../service/BackendApi'
 import { useNavigate } from 'react-router-dom'
 import { getLocalUser } from '@/lib/localUser'
+import { toast } from 'sonner'
 
 
 
@@ -26,25 +26,16 @@ function AddResume() {
     const navigation=useNavigate();
     const onCreate=async()=>{
         setLoading(true)
-        const uuid=uuidv4();
-        const data={
-            data:{
-                title:resumeTitle,
-                resumeId:uuid,
-                userEmail:user.email,
-                userName:user.name
-            }
-        }
-
-        GlobalApi.CreateNewResume(data).then(resp=>{
-            console.log(resp.data.data.documentId);
-            if(resp)
-            {
-                setLoading(false);
-                navigation('/dashboard/resume/'+resp.data.data.documentId+"/edit");
-            }
-        },(error)=>{
+        BackendApi.createResume({
+            title: resumeTitle,
+            email: user.email,
+            name: user.name,
+        }).then(resp=>{
             setLoading(false);
+            navigation('/dashboard/resume/'+resp.data._id+"/edit");
+        },()=>{
+            setLoading(false);
+            toast('Could not create the resume. Start the API server and MongoDB, then try again.')
         })
 
     }

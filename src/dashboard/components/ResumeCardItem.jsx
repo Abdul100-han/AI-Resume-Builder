@@ -20,7 +20,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import GlobalApi from './../../../service/GlobalApi'
+import BackendApi from './../../../service/BackendApi'
+import { getLocalUser } from '@/lib/localUser'
 import { toast } from 'sonner'
 
 function ResumeCardItem({resume,refreshData}) {
@@ -35,20 +36,20 @@ function ResumeCardItem({resume,refreshData}) {
 
   const onDelete=()=>{
     setLoading(true);
-    GlobalApi.DeleteResumeById(resume.documentId).then(resp=>{
-      console.log(resp);
+    BackendApi.deleteResume(resume._id, getLocalUser().email).then(()=>{
       toast('Resume Deleted!');
       refreshData()
       setLoading(false);
       setOpenAlert(false);
-    },(error)=>{
+    },()=>{
       setLoading(false);
+      toast('Could not delete this resume.')
     })
   }
   return (
     
        <div className=''>
-          <Link to={'/dashboard/resume/'+resume.documentId+"/edit"}>
+          <Link to={'/dashboard/resume/'+resume._id+"/edit"}>
         <div className='p-14  bg-gradient-to-b
           from-pink-100 via-purple-200 to-blue-200
         h-[280px] 
@@ -77,9 +78,9 @@ function ResumeCardItem({resume,refreshData}) {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
            
-            <DropdownMenuItem  onClick={()=>navigation('/dashboard/resume/'+resume.documentId+"/edit")}>Edit</DropdownMenuItem>
-            <DropdownMenuItem onClick={()=>navigation('/my-resume/'+resume.documentId+"/view")}>View</DropdownMenuItem>
-            <DropdownMenuItem onClick={()=>navigation('/my-resume/'+resume.documentId+"/view")}>Download</DropdownMenuItem>
+            <DropdownMenuItem  onClick={()=>navigation('/dashboard/resume/'+resume._id+"/edit")}>Edit</DropdownMenuItem>
+            <DropdownMenuItem onClick={()=>navigation('/my-resume/'+resume._id+"/view")}>View</DropdownMenuItem>
+            <DropdownMenuItem onClick={()=>navigation('/my-resume/'+resume._id+"/view")}>Download</DropdownMenuItem>
             <DropdownMenuItem onClick={()=>setOpenAlert(true)}>Delete</DropdownMenuItem>
             
           </DropdownMenuContent>
@@ -89,10 +90,9 @@ function ResumeCardItem({resume,refreshData}) {
         
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this resume?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your account
-              and remove your data from our servers.
+              This action cannot be undone. This will permanently delete this resume.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

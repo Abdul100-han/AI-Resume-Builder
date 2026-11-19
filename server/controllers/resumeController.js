@@ -1,27 +1,228 @@
+import { randomUUID } from 'crypto'
+import mongoose from 'mongoose'
 import Resume from '../models/Resume.js'
 import User from '../models/User.js'
 
 const cleanSkills = (skills = []) =>
-  skills
-    .map((skill) => ({
-      name: String(skill?.name || skill || '').trim(),
-      rating: Number(skill?.rating) || 0,
-    }))
+  (Array.isArray(skills) ? skills : [])
+    .map((skill) => {
+      const name = typeof skill === 'string' ? skill : skill?.name
+      return {
+        name: String(name || '').trim(),
+        rating: Number(skill?.rating) || 0,
+      }
+    })
     .filter((skill) => skill.name)
 
-const cleanList = (items) => (Array.isArray(items) ? items : [])
+const cleanEducation = (items) =>
+  (Array.isArray(items) ? items : []).map((item) => ({
+    universityName: item?.universityName || '',
+    degree: item?.degree || '',
+    major: item?.major || '',
+    startDate: item?.startDate || '',
+    endDate: item?.endDate || '',
+    description: item?.description || '',
+  }))
+
+const cleanExperience = (items) =>
+  (Array.isArray(items) ? items : []).map((item) => ({
+    title: item?.title || '',
+    companyName: item?.companyName || '',
+    city: item?.city || '',
+    state: item?.state || '',
+    startDate: item?.startDate || '',
+    endDate: item?.currentlyWorking ? '' : item?.endDate || '',
+    currentlyWorking: Boolean(item?.currentlyWorking),
+    workSummery: item?.workSummery || '',
+  }))
+
+const ownerEmail = (value) => String(value || '').toLowerCase().trim()
+
+const findOrCreateStudent = async (email, name) => {
+  let user = await User.findOne({ email })
+  if (!user) {
+    user = await User.create({
+      name: name || 'Guest',
+      email,
+      role: 'student',
+    })
+  }
+  return user
+}
+
+const mirrorStudent = async (user, resume, body) => {
+  if (!user || user.role !== 'student') return
+
+  let changed = false
+  if (body.skills !== undefined) {
+    user.skills = resume.skills
+    changed = true
+  }
+  if (body.education !== undefined) {
+    user.education = resume.education
+    changed = true
+  }
+  if (body.experience !== undefined || body.Experience !== undefined) {
+    user.experience = resume.experience
+    changed = true
+  }
+
+  const personalKeys = ['firstName', 'lastName', 'phone', 'address', 'jobTitle']
+  if (personalKeys.some((key) => body[key] !== undefined)) {
+    user.personalInfo = {
+      firstName: resume.firstName,
+      lastName: resume.lastName,
+      phone: resume.phone,
+      address: resume.address,
+      jobTitle: resume.jobTitle,
+    }
+    const fullName = [resume.firstName, resume.lastName].filter(Boolean).join(' ').trim()
+    if (fullName) user.name = fullName
+    changed = true
+  }
+
+  if (changed) await user.save()
+}
+
+export const createResume = async (req, res) => {
+  try {
+    const email = ownerEmail(req.body.email)
+    const title = String(req.body.title || '').trim()
+    if (!email || !title) {
+      return res.status(400).json({ message: 'email and title are required' })
+    }
+
+    const user = await findOrCreateStudent(email, req.body.name)
+    const resume = await Resume.create({
+      user: user._id,
+      title,
+      resumeId: randomUUID(),
+      themeColor: '#0f6b5e',
+      experience: [],
+      education: [],
+      skills: [],
+    })
+
+    return res.status(201).json(resume)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+export const getResumes = async (req, res) => {
+  try {
+    const email = ownerEmail(req.query.email)
+    if (!email) {
+      return res.status(400).json({ message: 'email is required' })
+    }
+
+    const user = await User.findOne({ email })
+    if (!user) {
+      return res.json([])
+    }
+
+    const resumes = await Resume.find({ user: user._id }).sort({ updatedAt: -1 })
+    return res.json(resumes)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+export const getResumeById = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Resume not found' })
+    }
+
+    const resume = await Resume.findById(req.params.id)
+    if (!resume) {
+      return res.status(404).json({ message: 'Resume not found' })
+    }
+
+    return res.json(resume)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+export const updateResume = async (req, res) => {
+  try {
+    const email = ownerEmail(req.query.email)
+    if (!email) {
+      return res.status(400).json({ message: 'email is required' })
+    }
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Resume not found' })
+    }
+
+    const user = await User.findOne({ email })
+    const resume = user
+      ? await Resume.findOne({ _id: req.params.id, user: user._id })
+      : null
+    if (!resume) {
+      return res.status(404).json({ message: 'Resume not found' })
+    }
+
+    const scalarFields = ['title', 'themeColor', 'firstName', 'lastName', 'jobTitle', 'address', 'phone', 'email']
+    for (const field of scalarFields) {
+      if (req.body[field] !== undefined) resume[field] = req.body[field]
+    }
+    if (req.body.summery !== undefined) resume.summery = req.body.summery
+    else if (req.body.summary !== undefined) resume.summery = req.body.summary
+
+    if (req.body.experience !== undefined || req.body.Experience !== undefined) {
+      resume.experience = cleanExperience(req.body.experience ?? req.body.Experience)
+    }
+    if (req.body.education !== undefined) {
+      resume.education = cleanEducation(req.body.education)
+    }
+    if (req.body.skills !== undefined) {
+      resume.skills = cleanSkills(req.body.skills)
+    }
+
+    await resume.save()
+    await mirrorStudent(user, resume, req.body)
+    return res.json(resume)
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
+
+export const deleteResume = async (req, res) => {
+  try {
+    const email = ownerEmail(req.query.email)
+    if (!email) {
+      return res.status(400).json({ message: 'email is required' })
+    }
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Resume not found' })
+    }
+
+    const user = await User.findOne({ email })
+    const resume = user
+      ? await Resume.findOneAndDelete({ _id: req.params.id, user: user._id })
+      : null
+    if (!resume) {
+      return res.status(404).json({ message: 'Resume not found' })
+    }
+
+    return res.json({ message: 'Resume deleted' })
+  } catch (error) {
+    return res.status(500).json({ message: error.message })
+  }
+}
 
 export const syncResume = async (req, res) => {
   try {
-    const email = req.body.email?.toLowerCase().trim()
+    const email = ownerEmail(req.body.email)
     const resumeId = req.body.resumeId?.trim()
     if (!email || !resumeId) {
       return res.status(400).json({ message: 'email and resumeId are required' })
     }
 
     const skills = cleanSkills(req.body.skills)
-    const education = cleanList(req.body.education)
-    const experience = cleanList(req.body.experience || req.body.Experience)
+    const education = cleanEducation(req.body.education)
+    const experience = cleanExperience(req.body.experience ?? req.body.Experience)
 
     let user = await User.findOne({ email })
     if (!user) {
@@ -68,7 +269,7 @@ export const syncResume = async (req, res) => {
         address: req.body.address,
         phone: req.body.phone,
         email: req.body.contactEmail,
-        summery: req.body.summery,
+        summery: req.body.summery ?? req.body.summary,
         experience,
         education,
         skills,
@@ -77,25 +278,6 @@ export const syncResume = async (req, res) => {
     )
 
     return res.json(resume)
-  } catch (error) {
-    return res.status(500).json({ message: error.message })
-  }
-}
-
-export const getResumes = async (req, res) => {
-  try {
-    const email = req.query.email?.toLowerCase().trim()
-    if (!email) {
-      return res.status(400).json({ message: 'email is required' })
-    }
-
-    const user = await User.findOne({ email })
-    if (!user) {
-      return res.json([])
-    }
-
-    const resumes = await Resume.find({ user: user._id }).sort({ updatedAt: -1 })
-    return res.json(resumes)
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }

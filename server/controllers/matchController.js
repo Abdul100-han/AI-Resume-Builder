@@ -1,5 +1,15 @@
 import JobVacancy from '../models/JobVacancy.js'
+import Resume from '../models/Resume.js'
 import User from '../models/User.js'
+
+async function skillsForEmail(email) {
+  const user = await User.findOne({ email })
+  if (!user) return []
+
+  const latest = await Resume.findOne({ user: user._id }).sort({ updatedAt: -1 })
+  if (latest?.skills?.length) return latest.skills
+  return user.skills || []
+}
 
 const normalize = (value) =>
   String(value || '')
@@ -45,8 +55,7 @@ export const matchJobs = async (req, res) => {
       return res.status(400).json({ message: 'email is required' })
     }
 
-    const user = await User.findOne({ email })
-    const skills = user?.skills || []
+    const skills = await skillsForEmail(email)
     const jobs = await JobVacancy.find().sort({ postedDate: -1 })
 
     const results = jobs.map((job) => {
@@ -80,9 +89,9 @@ export const matchOneJob = async (req, res) => {
       return res.status(404).json({ message: 'Job vacancy not found' })
     }
 
-    const user = await User.findOne({ email })
-    const match = calculateMatchScore(user?.skills || [], job.requiredSkills)
-    return res.json({ job, skills: (user?.skills || []).map((skill) => skill.name), ...match })
+    const skills = await skillsForEmail(email)
+    const match = calculateMatchScore(skills, job.requiredSkills)
+    return res.json({ job, skills: skills.map((skill) => skill.name), ...match })
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }

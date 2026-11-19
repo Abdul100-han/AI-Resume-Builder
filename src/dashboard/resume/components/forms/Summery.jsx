@@ -3,12 +3,20 @@ import { Textarea } from '@/components/ui/textarea'
 import { ResumeInfoContext } from '@/context/ResumeInfoContext'
 import React, { useContext, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom';
-import GlobalApi from './../../../../../service/GlobalApi';
+import BackendApi from './../../../../../service/BackendApi';
+import { getLocalUser } from '@/lib/localUser';
 import { Brain, LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { AIChatSession } from './../../../../../service/AIModal';
+import { generateJson, hasGeminiKey } from './../../../../../service/AIModal';
 
-const prompt="Job Title: {jobTitle} , Depends on job title give me list of  summery for 3 experience level, Mid Level and Freasher level in 3 -4 lines in array format, With summery and experience_level Field in JSON Format"
+const prompt="Job Title: {jobTitle}. Write 3 professional resume summaries, one for Fresher, one for Mid Level, and one for Senior. Return a JSON array only. Each item must use the keys \"summary\" and \"experience_level\". Each summary should be 3 to 4 lines."
+
+const toSummaryList = (parsed) => {
+    if (Array.isArray(parsed)) return parsed
+    if (Array.isArray(parsed?.summaries)) return parsed.summaries
+    if (Array.isArray(parsed?.items)) return parsed.items
+    return []
+}
 function Summery({enabledNext}) {
     const {resumeInfo,setResumeInfo}=useContext(ResumeInfoContext);
     const [summery,setSummery]=useState();
@@ -23,32 +31,33 @@ function Summery({enabledNext}) {
     },[summery])
 
     const GenerateSummeryFromAI=async()=>{
+        if(!hasGeminiKey()){
+            toast('Add VITE_GOOGLE_AI_API_KEY to enable AI suggestions.')
+            return
+        }
         setLoading(true)
         const PROMPT=prompt.replace('{jobTitle}',resumeInfo?.jobTitle);
-        console.log(PROMPT);
-        const result=await AIChatSession.sendMessage(PROMPT);
-        console.log(JSON.parse(result.response.text()))
-       
-        setAiGenerateSummeryList(JSON.parse(result.response.text()))
-        setLoading(false);
+        try {
+            const parsed = await generateJson(PROMPT)
+            setAiGenerateSummeryList(toSummaryList(parsed))
+        } catch {
+            toast('Could not generate a summary. Check the Gemini API key and try again.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     const onSave=(e)=>{
         e.preventDefault();
        
         setLoading(true)
-        const data={
-            data:{
-                summery:summery
-            }
-        }
-        GlobalApi.UpdateResumeDetail(params?.resumeId,data).then(resp=>{
-            console.log(resp);
+        BackendApi.updateResume(params?.resumeId, { summery }, getLocalUser().email).then(()=>{
             enabledNext(true);
             setLoading(false);
             toast("Details updated")
-        },(error)=>{
+        },()=>{
             setLoading(false);
+            toast('Server Error, Please try again!')
         })
     }
     return (
@@ -81,12 +90,12 @@ function Summery({enabledNext}) {
         
        {aiGeneratedSummeryList&& <div className='my-5'>
             <h2 className='font-bold text-lg'>Suggestions</h2>
-            {aiGeneratedSummeryList?.map((item,index)=>(
+            {(aiGeneratedSummeryList ?? []).map((item,index)=>(
                 <div key={index} 
-                onClick={()=>setSummery(item?.summary)}
+                onClick={()=>setSummery(item?.summary || item?.summery)}
                 className='p-5 shadow-lg my-4 rounded-lg cursor-pointer'>
                     <h2 className='font-bold my-1 text-primary'>Level: {item?.experience_level}</h2>
-                    <p>{item?.summary}</p>
+                    <p>{item?.summary || item?.summery}</p>
                 </div>
             ))}
         </div>}

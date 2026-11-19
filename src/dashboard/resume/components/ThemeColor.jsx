@@ -7,7 +7,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { LayoutGrid } from 'lucide-react'
 import { ResumeInfoContext } from '@/context/ResumeInfoContext'
-import GlobalApi from './../../../../service/GlobalApi'
+import BackendApi from './../../../../service/BackendApi'
+import { getLocalUser } from '@/lib/localUser'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -28,14 +29,10 @@ function ThemeColor() {
             ...resumeInfo,
             themeColor:color
         });
-        const data={
-            data:{
-                themeColor:color
-            }
-        }
-        GlobalApi.UpdateResumeDetail(resumeId,data).then(resp=>{
-            console.log(resp);
+        BackendApi.updateResume(resumeId, { themeColor: color }, getLocalUser().email).then(()=>{
             toast('Theme Color Updated')
+        },()=>{
+            toast('Server Error, Please try again!')
         })
     }
 

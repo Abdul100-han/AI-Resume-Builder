@@ -20,11 +20,11 @@ function ResumePreview() {
         {/* Summery  */}
             <SummeryPreview resumeInfo={resumeInfo} />
         {/* Professional Experience  */}
-           {resumeInfo?.Experience?.length>0&& <ExperiencePreview resumeInfo={resumeInfo} />}
+           {(resumeInfo?.experience ?? []).length>0&& <ExperiencePreview resumeInfo={resumeInfo} />}
         {/* Educational  */}
-        {resumeInfo?.education?.length>0&&   <EducationalPreview resumeInfo={resumeInfo} />}
+        {(resumeInfo?.education ?? []).length>0&&   <EducationalPreview resumeInfo={resumeInfo} />}
         {/* Skilss  */}
-        {resumeInfo?.skills?.length>0&&    <SkillsPreview resumeInfo={resumeInfo}/>}
+        {(resumeInfo?.skills ?? []).length>0&&    <SkillsPreview resumeInfo={resumeInfo}/>}
     </div>
   )
 }

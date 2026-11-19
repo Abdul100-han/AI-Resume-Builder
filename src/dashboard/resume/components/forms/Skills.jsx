@@ -6,25 +6,23 @@ import '@smastrom/react-rating/style.css'
 import { Button } from '@/components/ui/button'
 import { LoaderCircle } from 'lucide-react'
 import { ResumeInfoContext } from '@/context/ResumeInfoContext'
-import GlobalApi from './../../../../../service/GlobalApi'
 import BackendApi from './../../../../../service/BackendApi'
 import { getLocalUser } from '@/lib/localUser'
 import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 function Skills() {
 
-    const [skillsList,setSkillsList]=useState([{
-        name:'',
-        rating:0
-    }])
+    const {resumeInfo,setResumeInfo}=useContext(ResumeInfoContext);
+    const [skillsList,setSkillsList]=useState(() => {
+        const existing = resumeInfo?.skills ?? []
+        return existing.length > 0 ? existing : [{
+            name:'',
+            rating:0
+        }]
+    })
     const {resumeId}=useParams();
 
     const [loading,setLoading]=useState(false);
-    const {resumeInfo,setResumeInfo}=useContext(ResumeInfoContext);
-   
-    useEffect(()=>{
-        resumeInfo&&setSkillsList(resumeInfo?.skills)
-      },[])
    
     const handleChange=(index,name,value)=>{
         const newEntries=skillsList.slice();
@@ -46,47 +44,22 @@ function Skills() {
     const onSave=()=>{
 
         setLoading(true);
-        const skills = skillsList.map(({ id, ...rest }) => rest)
-        const data={
-            data:{
-                skills
-            }
-        }
-
+        const skills = (skillsList ?? []).map(({ id, ...rest }) => rest)
         const user = getLocalUser()
-        const saveStrapi = GlobalApi.UpdateResumeDetail(resumeId, data)
-        const saveMatchProfile = BackendApi.syncResume({
-            email: user.email,
-            name: user.name,
-            resumeId,
-            title: resumeInfo?.title || 'My Resume',
-            themeColor: resumeInfo?.themeColor,
-            firstName: resumeInfo?.firstName,
-            lastName: resumeInfo?.lastName,
-            jobTitle: resumeInfo?.jobTitle,
-            address: resumeInfo?.address,
-            phone: resumeInfo?.phone,
-            contactEmail: resumeInfo?.email,
-            summery: resumeInfo?.summery,
-            experience: resumeInfo?.Experience || resumeInfo?.experience || [],
-            education: resumeInfo?.education || [],
-            skills,
-        }).catch(() => null)
 
-        Promise.allSettled([saveStrapi, saveMatchProfile]).then((results) => {
+        BackendApi.updateResume(resumeId, { skills }, user.email).then(() => {
             setLoading(false)
-            if (results[0].status === 'fulfilled' || results[1].value) {
-                toast('Details updated !')
-            } else {
-                toast('Server Error, Try again!')
-            }
+            toast('Details updated !')
+        }, () => {
+            setLoading(false)
+            toast('Server Error, Try again!')
         })
     }
 
     useEffect(()=>{
         setResumeInfo({
             ...resumeInfo,
-            skills:skillsList
+            skills: skillsList ?? []
         })
     },[skillsList])
   return (
@@ -95,7 +68,7 @@ function Skills() {
     <p>Add Your top professional key skills</p>
 
     <div>
-        {skillsList.map((item,index)=>(
+        {(skillsList ?? []).map((item,index)=>(
             <div className='flex justify-between mb-2 border rounded-lg p-3 '>
                 <div>
                     <label className='text-xs'>Name</label>

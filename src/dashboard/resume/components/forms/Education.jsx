@@ -5,7 +5,8 @@ import { ResumeInfoContext } from '@/context/ResumeInfoContext'
 import { LoaderCircle } from 'lucide-react'
 import React, { useContext, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import GlobalApi from './../../../../../service/GlobalApi'
+import BackendApi from './../../../../../service/BackendApi'
+import { getLocalUser } from '@/lib/localUser'
 import { toast } from 'sonner'
 
 function Education() {
@@ -13,20 +14,17 @@ function Education() {
   const [loading,setLoading]=useState(false);
   const {resumeInfo,setResumeInfo}=useContext(ResumeInfoContext);
   const params=useParams();
-  const [educationalList,setEducationalList]=useState([
-    {
+  const [educationalList,setEducationalList]=useState(() => {
+    const existing = resumeInfo?.education ?? []
+    return existing.length > 0 ? existing : [{
       universityName:'',
       degree:'',
       major:'',
       startDate:'',
       endDate:'',
       description:''
-    }
-  ])
-
-  useEffect(()=>{
-    resumeInfo&&setEducationalList(resumeInfo?.education)
-  },[])
+    }]
+  })
   const handleChange=(event,index)=>{
     const newEntries=educationalList.slice();
     const {name,value}=event.target;
@@ -52,17 +50,12 @@ function Education() {
   }
   const onSave=()=>{
     setLoading(true)
-    const data={
-      data:{
-        education:educationalList.map(({ id, ...rest }) => rest)
-      }
-    }
+    const education = (educationalList ?? []).map(({ id, ...rest }) => rest)
 
-    GlobalApi.UpdateResumeDetail(params.resumeId,data).then(resp=>{
-      console.log(resp);
+    BackendApi.updateResume(params.resumeId, { education }, getLocalUser().email).then(()=>{
       setLoading(false)
       toast('Details updated !')
-    },(error)=>{
+    },()=>{
       setLoading(false);
       toast('Server Error, Please try again!')
     })
@@ -72,7 +65,7 @@ function Education() {
   useEffect(()=>{
     setResumeInfo({
       ...resumeInfo,
-      education:educationalList
+      education: educationalList ?? []
     })
   },[educationalList])
   return (
@@ -81,7 +74,7 @@ function Education() {
     <p>Add Your educational details</p>
 
     <div>
-      {educationalList.map((item,index)=>(
+      {(educationalList ?? []).map((item,index)=>(
         <div>
           <div className='grid grid-cols-2 gap-3 border p-3 my-5 rounded-lg'>
             <div className='col-span-2'>

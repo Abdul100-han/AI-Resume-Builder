@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import AddResume from './components/AddResume'
-import GlobalApi from './../../service/GlobalApi';
+import BackendApi from './../../service/BackendApi';
 import ResumeCardItem from './components/ResumeCardItem';
 import { getLocalUser } from '@/lib/localUser';
 
@@ -18,9 +18,9 @@ function Dashboard() {
    */
   const GetResumesList=()=>{
     setLoading(true)
-    GlobalApi.GetUserResumes(user.email)
+    BackendApi.getResumes(user.email)
     .then(resp=>{
-      const list = resp?.data?.data
+      const list = resp?.data
       setResumeList(Array.isArray(list) ? list : []);
     })
     .catch(()=>{

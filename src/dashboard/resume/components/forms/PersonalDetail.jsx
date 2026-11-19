@@ -4,7 +4,8 @@ import { ResumeInfoContext } from '@/context/ResumeInfoContext'
 import { LoaderCircle } from 'lucide-react';
 import React, { useContext, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom';
-import GlobalApi from './../../../../../service/GlobalApi';
+import BackendApi from './../../../../../service/BackendApi';
+import { getLocalUser } from '@/lib/localUser';
 import { toast } from 'sonner';
 
 function PersonalDetail({enabledNext}) {
@@ -35,16 +36,13 @@ function PersonalDetail({enabledNext}) {
     const onSave=(e)=>{
         e.preventDefault();
         setLoading(true)
-        const data={
-            data:formData
-        }
-        GlobalApi.UpdateResumeDetail(params?.resumeId,data).then(resp=>{
-            console.log(resp);
+        BackendApi.updateResume(params?.resumeId, formData || {}, getLocalUser().email).then(()=>{
             enabledNext(true);
             setLoading(false);
             toast("Details updated")
-        },(error)=>{
+        },()=>{
             setLoading(false);
+            toast('Server Error, Please try again!')
         })
         
     }

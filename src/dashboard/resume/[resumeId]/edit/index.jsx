@@ -3,8 +3,9 @@ import { useParams } from 'react-router-dom'
 import FormSection from '../../components/FormSection';
 import ResumePreview from '../../components/ResumePreview';
 import { ResumeInfoContext } from '@/context/ResumeInfoContext';
-import dummy from '@/data/dummy';
-import GlobalApi from './../../../../../service/GlobalApi';
+import BackendApi from './../../../../../service/BackendApi';
+import { normalizeResume } from '@/lib/resume';
+import { toast } from 'sonner';
 
 function EditResume() {
     const {resumeId}=useParams();
@@ -16,9 +17,10 @@ function EditResume() {
 
 
     const GetResumeInfo=()=>{
-        GlobalApi.GetResumeById(resumeId).then(resp=>{
-          console.log(resp.data.data);
-          setResumeInfo(resp.data.data);
+        BackendApi.getResumeById(resumeId).then(resp=>{
+          setResumeInfo(normalizeResume(resp.data));
+        }).catch(()=>{
+          toast('Could not load this resume.')
         })
     }
 

@@ -4,7 +4,9 @@ import { ResumeInfoContext } from '@/context/ResumeInfoContext'
 import ResumePreview from '@/dashboard/resume/components/ResumePreview'
 import React, { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import GlobalApi from './../../../../service/GlobalApi'
+import BackendApi from './../../../../service/BackendApi'
+import { normalizeResume } from '@/lib/resume'
+import { toast } from 'sonner'
 import { RWebShare } from 'react-web-share'
 
 function ViewResume() {
@@ -16,9 +18,10 @@ function ViewResume() {
         GetResumeInfo();
     },[])
     const GetResumeInfo=()=>{
-        GlobalApi.GetResumeById(resumeId).then(resp=>{
-            console.log(resp.data.data);
-            setResumeInfo(resp.data.data);
+        BackendApi.getResumeById(resumeId).then(resp=>{
+            setResumeInfo(normalizeResume(resp.data));
+        }).catch(()=>{
+            toast('Could not load this resume.')
         })
     }
 
@@ -42,7 +45,7 @@ function ViewResume() {
                 <RWebShare
         data={{
           text: "Hello Everyone, This is my resume please open url to see it",
-          url: import.meta.env.VITE_BASE_URL+"/my-resume/"+resumeId+"/view",
+          url: (import.meta.env.VITE_BASE_URL || window.location.origin)+"/my-resume/"+resumeId+"/view",
           title: resumeInfo?.firstName+" "+resumeInfo?.lastName+" resume",
         }}
         onClick={() => console.log("shared successfully!")}

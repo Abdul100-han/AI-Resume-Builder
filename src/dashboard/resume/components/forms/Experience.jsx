@@ -4,7 +4,8 @@ import React, { useContext, useEffect, useState } from 'react'
 import RichTextEditor from '../RichTextEditor'
 import { ResumeInfoContext } from '@/context/ResumeInfoContext'
 import { useParams } from 'react-router-dom'
-import GlobalApi from './../../../../../service/GlobalApi'
+import BackendApi from './../../../../../service/BackendApi'
+import { getLocalUser } from '@/lib/localUser'
 import { toast } from 'sonner'
 import { LoaderCircle } from 'lucide-react'
 
@@ -19,15 +20,12 @@ const formField={
 
 }
 function Experience() {
-    const [experinceList,setExperinceList]=useState([]);
     const {resumeInfo,setResumeInfo}=useContext(ResumeInfoContext);
+    const [experinceList,setExperinceList]=useState(
+        () => resumeInfo?.experience ?? resumeInfo?.Experience ?? []
+    );
     const params=useParams();
     const [loading,setLoading]=useState(false);
-
-    useEffect(()=>{
-        resumeInfo?.Experience.length>0&&setExperinceList(resumeInfo?.Experience)
-        
-    },[])
 
     const handleChange=(index,event)=>{
         const newEntries=experinceList.slice();
@@ -64,7 +62,7 @@ function Experience() {
     useEffect(()=>{
         setResumeInfo({
             ...resumeInfo,
-            Experience:experinceList
+            experience: experinceList ?? []
         });
      
     },[experinceList]);
@@ -72,20 +70,18 @@ function Experience() {
 
     const onSave=()=>{
         setLoading(true)
-        const data={
-            data:{
-                Experience:experinceList.map(({ id, ...rest }) => rest)
-            }
-        }
+        const experience = (experinceList ?? []).map(({ id, ...rest }) => ({
+            ...rest,
+            currentlyWorking: Boolean(rest.currentlyWorking),
+            endDate: rest.currentlyWorking ? '' : rest.endDate,
+        }))
 
-         console.log(experinceList)
-
-        GlobalApi.UpdateResumeDetail(params?.resumeId,data).then(res=>{
-            console.log(res);
+        BackendApi.updateResume(params?.resumeId, { experience }, getLocalUser().email).then(()=>{
             setLoading(false);
             toast('Details updated !')
-        },(error)=>{
+        },()=>{
             setLoading(false);
+            toast('Server Error, Please try again!')
         })
 
     }
@@ -95,7 +91,7 @@ function Experience() {
         <h2 className='font-bold text-lg'>Professional Experience</h2>
         <p>Add Your previous Job experience</p>
         <div>
-            {experinceList.map((item,index)=>(
+            {(experinceList ?? []).map((item,index)=>(
                 <div key={index}>
                     <div className='grid grid-cols-2 gap-3 border p-3 my-5 rounded-lg'>
                         <div>
@@ -135,8 +131,23 @@ function Experience() {
                             <label className='text-xs'>End Date</label>
                             <Input type="date" name="endDate" 
                             onChange={(event)=>handleChange(index,event)} 
-                            defaultValue={item?.endDate}
+                            value={item?.currentlyWorking ? '' : (item?.endDate || '')}
+                            disabled={!!item?.currentlyWorking}
                             />
+                        </div>
+                        <div className='col-span-2 flex items-center gap-2'>
+                            <input
+                            id={`currently-working-${index}`}
+                            type="checkbox"
+                            checked={!!item?.currentlyWorking}
+                            onChange={(event)=>{
+                                const newEntries=experinceList.slice();
+                                newEntries[index].currentlyWorking=event.target.checked;
+                                if(event.target.checked) newEntries[index].endDate='';
+                                setExperinceList(newEntries);
+                            }}
+                            />
+                            <label htmlFor={`currently-working-${index}`} className='text-xs'>Currently working here</label>
                         </div>
                         <div className='col-span-2'>
                            {/* Work Summery  */}
