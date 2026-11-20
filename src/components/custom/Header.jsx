@@ -3,6 +3,7 @@ import { Button } from '../ui/button'
 import { Link, useLocation } from 'react-router-dom'
 
 const links = [
+    { to: '/', label: 'Home', match: (path) => path === '/' },
     { to: '/profile', label: 'Student Profile', match: (path) => path === '/profile' || path.startsWith('/profile/') },
     { to: '/dashboard', label: 'Dashboard', match: (path) => path === '/dashboard' || path.startsWith('/dashboard/') || path.startsWith('/my-resume/') },
     { to: '/jobs', label: 'Job Matches', match: (path) => path === '/jobs' || path.startsWith('/jobs/') },
