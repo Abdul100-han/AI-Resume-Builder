@@ -11,7 +11,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:5000',
+      // 127.0.0.1, not localhost: on Windows localhost often resolves to IPv6
+      // and the proxy then resets the request (the profile save shows as a generic failure).
+      '/api': 'http://127.0.0.1:5000',
     },
   },
 })

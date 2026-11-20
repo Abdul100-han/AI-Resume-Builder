@@ -35,8 +35,10 @@ const port = process.env.PORT || 5000
 connectDB()
   .then(() => ensureAdmin())
   .then(() => {
-    const server = app.listen(port, () => {
-      console.log(`Server running on port ${port}`)
+    // Bind IPv4 explicitly. A bare listen() on Windows binds IPv6 only, and the
+// Vite proxy's IPv4 connection is then reset mid-request.
+    const server = app.listen(port, '127.0.0.1', () => {
+      console.log(`Server running on http://127.0.0.1:${port}`)
     })
     server.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {
