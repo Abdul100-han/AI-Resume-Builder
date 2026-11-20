@@ -1,12 +1,13 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import User from '../models/User.js'
+import { getSupabase } from '../config/db.js'
 
 const signToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+  jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: '7d',
   })
 
+// Create the admin from server/.env on first start. If that email already exists, nothing changes.
 export async function ensureAdmin() {
   const email = process.env.ADMIN_EMAIL?.toLowerCase().trim()
   const password = process.env.ADMIN_PASSWORD
@@ -15,18 +16,26 @@ export async function ensureAdmin() {
     return
   }
 
-  const existing = await User.findOne({ email })
-  if (existing) {
-    return
-  }
+  const supabase = getSupabase()
+  const { data: existing, error: findError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+  if (findError) throw new Error(`Could not check admin user: ${findError.message}`)
+  if (existing) return
 
   const hashed = await bcrypt.hash(password, 10)
-  await User.create({
+  const { error: insertError } = await supabase.from('users').insert({
     name: process.env.ADMIN_NAME || 'Admin',
     email,
     password: hashed,
     role: 'admin',
   })
+  // 23505 = unique violation: another process created the admin at the same moment.
+  if (insertError && insertError.code !== '23505') {
+    throw new Error(`Could not create admin user: ${insertError.message}`)
+  }
   console.log(`Admin user created for ${email}`)
 }
 
@@ -41,7 +50,12 @@ export const login = async (req, res) => {
       return res.status(500).json({ message: 'JWT_SECRET is not configured' })
     }
 
-    const user = await User.findOne({ email })
+    const { data: user, error } = await getSupabase()
+      .from('users')
+      .select('id, name, email, role, password')
+      .eq('email', email)
+      .maybeSingle()
+    if (error) throw error
     if (!user?.password) {
       return res.status(401).json({ message: 'Invalid credentials' })
     }
@@ -56,7 +70,7 @@ export const login = async (req, res) => {
 
     return res.json({
       token: signToken(user),
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
     })
   } catch (error) {
     return res.status(500).json({ message: error.message })

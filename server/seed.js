@@ -9,6 +9,7 @@
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 import connectDB from './config/db.js'
+import { connectLegacyMongo } from './config/legacyMongo.js'
 import { ensureAdmin } from './controllers/authController.js'
 import JobVacancy from './models/JobVacancy.js'
 import Resume from './models/Resume.js'
@@ -223,7 +224,9 @@ const created = (result) => !result.lastErrorObject?.updatedExisting
 
 async function seed() {
   await connectDB()
-  await ensureAdmin()
+  await ensureAdmin() // admin now lives in Supabase
+  // Vacancies, students and CVs are still Mongo models until Phase 2 rewrites this script.
+  if (!(await connectLegacyMongo())) throw new Error('Seeding vacancies and CVs still needs MONGO_URI until Phase 2.')
   const admin = await User.findOne({ role: 'admin' })
 
   console.log(`\nSeeding demo data (${RESET ? 'reset mode' : 'insert missing only'})`)

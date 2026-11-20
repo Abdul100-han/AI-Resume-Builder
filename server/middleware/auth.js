@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import User from '../models/User.js'
+import { getSupabase } from '../config/db.js'
 
 export async function protect(req, res, next) {
   const header = req.headers.authorization || ''
@@ -11,8 +11,14 @@ export async function protect(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    const user = await User.findById(decoded.id).select('-password')
-    if (!user) {
+    // Tokens issued before the Supabase move hold a Mongo id, which is not a uuid:
+    // the query errors and the user is asked to log in again.
+    const { data: user, error } = await getSupabase()
+      .from('users')
+      .select('id, name, email, role')
+      .eq('id', decoded.id)
+      .maybeSingle()
+    if (error || !user) {
       return res.status(401).json({ message: 'Not authorized' })
     }
     req.user = user
