@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import BackendApi from '../../service/BackendApi'
 import { getLocalUser, saveLocalUser } from '@/lib/localUser'
 import { toast } from 'sonner'
+import DemoAccounts from './DemoAccounts'
 
 const DEPARTMENTS = [
   'Computer Science',
@@ -149,6 +150,8 @@ function StudentProfile() {
           </div>
         </form>
       )}
+
+      <DemoAccounts currentEmail={ownerEmail} />
     </div>
   )
 }

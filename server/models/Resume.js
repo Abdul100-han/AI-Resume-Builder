@@ -40,6 +40,7 @@ const resumeSchema = new mongoose.Schema(
     title: { type: String, default: 'Untitled Resume', trim: true },
     resumeId: { type: String, required: true },
     themeColor: String,
+    template: { type: String, enum: ['classic', 'modern'], default: 'classic' },
     firstName: String,
     lastName: String,
     jobTitle: String,

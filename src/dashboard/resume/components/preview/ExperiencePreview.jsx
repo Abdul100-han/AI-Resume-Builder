@@ -3,7 +3,7 @@ import React from 'react'
 function ExperiencePreview({resumeInfo}) {
   return (
     <div className='my-6'>
-        <h2 className='text-center font-bold text-sm mb-2'
+        <h2 className='cv-section-title text-center font-bold text-sm mb-2'
         style={{
             color:resumeInfo?.themeColor
         }}
@@ -13,7 +13,7 @@ function ExperiencePreview({resumeInfo}) {
         }} />
 
         {(resumeInfo?.experience ?? []).map((experience,index)=>(
-            <div key={index} className='my-5'>
+            <div key={index} className='cv-entry my-5'>
                 <h2 className='text-sm font-bold'
                  style={{
                     color:resumeInfo?.themeColor
@@ -26,7 +26,7 @@ function ExperiencePreview({resumeInfo}) {
                 {/* <p className='text-xs my-2'>
                     {experience.workSummery}
                 </p> */}
-                <div className='text-xs my-2' dangerouslySetInnerHTML={{__html:experience?.workSummery}} />
+                <div className='cv-rich text-xs my-2' dangerouslySetInnerHTML={{__html:experience?.workSummery}} />
             </div>
         ))}
     </div>

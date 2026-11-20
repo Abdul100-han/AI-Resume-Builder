@@ -18,6 +18,19 @@ export function getLocalUser() {
   return user
 }
 
+// Demo helper: act as a seeded student (see server/seed.js). Students have no password,
+// so the browser's stored email is their identity.
+export function switchLocalUser(email, name) {
+  const next = { email: String(email).toLowerCase().trim(), name: name || 'Guest' }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  return next
+}
+
+export function resetLocalUser() {
+  localStorage.removeItem(STORAGE_KEY)
+  return getLocalUser()
+}
+
 export function saveLocalUser(updates) {
   const current = getLocalUser()
   const next = {

@@ -37,6 +37,9 @@ const cleanExperience = (items) =>
     workSummery: item?.workSummery || '',
   }))
 
+const TEMPLATES = ['classic', 'modern']
+const cleanTemplate = (value) => (TEMPLATES.includes(value) ? value : 'classic')
+
 const ownerEmail = (value) => String(value || '').toLowerCase().trim()
 
 const findOrCreateStudent = async (email, name) => {
@@ -112,6 +115,7 @@ export const createResume = async (req, res) => {
       title,
       resumeId: randomUUID(),
       themeColor: '#0f6b5e',
+      template: cleanTemplate(req.body.template),
       firstName: seed?.firstName,
       lastName: seed?.lastName,
       jobTitle: seed?.jobTitle,
@@ -187,6 +191,7 @@ export const updateResume = async (req, res) => {
     for (const field of scalarFields) {
       if (req.body[field] !== undefined) resume[field] = req.body[field]
     }
+    if (req.body.template !== undefined) resume.template = cleanTemplate(req.body.template)
     if (req.body.summery !== undefined) resume.summery = req.body.summery
     else if (req.body.summary !== undefined) resume.summery = req.body.summary
 
@@ -283,6 +288,7 @@ export const syncResume = async (req, res) => {
         resumeId,
         title: req.body.title || 'Untitled Resume',
         themeColor: req.body.themeColor,
+        ...(req.body.template !== undefined && { template: cleanTemplate(req.body.template) }),
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         jobTitle: req.body.jobTitle,

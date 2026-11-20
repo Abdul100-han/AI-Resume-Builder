@@ -9,5 +9,6 @@ export function normalizeResume(resume = {}) {
     education: Array.isArray(rest.education) ? rest.education : [],
     skills: Array.isArray(rest.skills) ? rest.skills : [],
     summery: rest.summery ?? rest.summary ?? '',
+    template: rest.template || 'classic',
   }
 }
