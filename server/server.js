@@ -1,42 +1,11 @@
-import dotenv from 'dotenv'
-import express from 'express'
-import cors from 'cors'
-import connectDB from './config/db.js'
-import { ensureAdmin } from './controllers/authController.js'
-import authRoutes from './routes/authRoutes.js'
-import jobRoutes from './routes/jobRoutes.js'
-import resumeRoutes from './routes/resumeRoutes.js'
-import matchRoutes from './routes/matchRoutes.js'
-import profileRoutes from './routes/profileRoutes.js'
-
-dotenv.config()
-
-const app = express()
-
-app.use(cors())
-app.use(express.json())
-
-app.get('/api/health', (req, res) => {
-  res.json({ ok: true, database: 'supabase' })
-})
-
-app.use('/api/auth', authRoutes)
-app.use('/api/profile', profileRoutes)
-app.use('/api/jobs', jobRoutes)
-app.use('/api/resumes', resumeRoutes)
-app.use('/api/match', matchRoutes)
-
-app.use((req, res) => {
-  res.status(404).json({ message: 'Route not found' })
-})
+import app, { ready } from './app.js'
 
 const port = process.env.PORT || 5000
 
-connectDB()
-  .then(() => ensureAdmin())
+ready()
   .then(() => {
     // Bind IPv4 explicitly. A bare listen() on Windows binds IPv6 only, and the
-// Vite proxy's IPv4 connection is then reset mid-request.
+    // Vite proxy's IPv4 connection is then reset mid-request.
     const server = app.listen(port, '127.0.0.1', () => {
       console.log(`Server running on http://127.0.0.1:${port}`)
     })

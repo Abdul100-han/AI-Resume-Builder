@@ -11,8 +11,8 @@ export function getSupabase() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!url || !key || url.includes('your-project-ref') || key.startsWith('replace-with')) {
     throw new Error(
-      'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in server/.env '
-      + '(Supabase dashboard → Project Settings → API).'
+      'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set '
+      + '(server/.env locally, or the Vercel project’s Environment Variables for the live site).'
     )
   }
 
