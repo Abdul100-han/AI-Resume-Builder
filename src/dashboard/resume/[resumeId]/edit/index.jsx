@@ -28,7 +28,7 @@ function EditResume() {
     <ResumeInfoContext.Provider value={{resumeInfo,setResumeInfo}}>
     <div className='grid grid-cols-1 md:grid-cols-2 p-10 gap-10'>
         {/* Form Section  */}
-          <FormSection key={resumeInfo?._id || 'loading'} />
+          <FormSection key={resumeInfo?.id || 'loading'} />
         {/* Preview Section  */}
          <ResumePreview/>
     </div>

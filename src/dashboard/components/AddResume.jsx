@@ -32,10 +32,10 @@ function AddResume() {
             name: user.name,
         }).then(resp=>{
             setLoading(false);
-            navigation('/dashboard/resume/'+resp.data._id+"/edit");
+            navigation('/dashboard/resume/'+resp.data.id+"/edit");
         },()=>{
             setLoading(false);
-            toast('Could not create the resume. Start the API server and MongoDB, then try again.')
+            toast('Could not create the resume. Check that the API server is running and Supabase is configured, then try again.')
         })
 
     }

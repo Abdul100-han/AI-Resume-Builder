@@ -1,18 +1,30 @@
-import JobVacancy from '../models/JobVacancy.js'
-import Resume from '../models/Resume.js'
-import User from '../models/User.js'
+import { getSupabase } from '../config/db.js'
 import { skillsFromSummary } from '../lib/studentProfile.js'
 import { rankJobs, WEIGHTS } from '../lib/nlpMatcher.js'
+import { isUuid, resumeFromRow, unwrap } from '../lib/mappers.js'
+import { findUserByEmail, normalizeEmail } from '../lib/userStore.js'
+import { listJobs } from './jobController.js'
 
 const skillName = (skill) => String(typeof skill === 'string' ? skill : skill?.name || '').trim()
+
+async function latestResume(userId) {
+  const row = unwrap(await getSupabase()
+    .from('resumes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle())
+  return resumeFromRow(row)
+}
 
 // Collect everything the NLP matcher can learn about a student:
 // skills (latest CV + account + profile summary), department, target roles and free text.
 async function studentForEmail(email) {
-  const user = await User.findOne({ email })
+  const user = await findUserByEmail(email)
   if (!user) return { skills: [], department: '', targetRoles: '', profileText: '' }
 
-  const latest = await Resume.findOne({ user: user._id }).sort({ updatedAt: -1 })
+  const latest = await latestResume(user.id)
   const profile = user.studentProfile || {}
 
   const skills = [
@@ -36,7 +48,7 @@ async function studentForEmail(email) {
 }
 
 const requireEmail = (req, res) => {
-  const email = req.query.email?.toLowerCase().trim()
+  const email = normalizeEmail(req.query.email)
   if (!email) res.status(400).json({ message: 'email is required' })
   return email
 }
@@ -46,8 +58,7 @@ export const matchJobs = async (req, res) => {
     const email = requireEmail(req, res)
     if (!email) return undefined
 
-    const student = await studentForEmail(email)
-    const jobs = await JobVacancy.find().sort({ postedDate: -1 }).lean()
+    const [student, jobs] = await Promise.all([studentForEmail(email), listJobs()])
 
     return res.json({
       skills: student.skills,
@@ -64,16 +75,16 @@ export const matchOneJob = async (req, res) => {
   try {
     const email = requireEmail(req, res)
     if (!email) return undefined
-
-    const job = await JobVacancy.findById(req.params.id).lean()
-    if (!job) {
+    if (!isUuid(req.params.id)) {
       return res.status(404).json({ message: 'Job vacancy not found' })
     }
 
-    // IDF is still computed over every vacancy so scores agree with the list view.
-    const student = await studentForEmail(email)
-    const jobs = await JobVacancy.find().lean()
-    const result = rankJobs(student, jobs).find((r) => String(r.job._id) === String(job._id))
+    // IDF is computed over every vacancy so scores agree with the list view.
+    const [student, jobs] = await Promise.all([studentForEmail(email), listJobs()])
+    const result = rankJobs(student, jobs).find((r) => r.job.id === req.params.id)
+    if (!result) {
+      return res.status(404).json({ message: 'Job vacancy not found' })
+    }
 
     return res.json({ skills: student.skills, ...result })
   } catch (error) {

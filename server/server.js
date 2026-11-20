@@ -2,7 +2,6 @@ import dotenv from 'dotenv'
 import express from 'express'
 import cors from 'cors'
 import connectDB from './config/db.js'
-import { connectLegacyMongo } from './config/legacyMongo.js'
 import { ensureAdmin } from './controllers/authController.js'
 import authRoutes from './routes/authRoutes.js'
 import jobRoutes from './routes/jobRoutes.js'
@@ -35,10 +34,18 @@ const port = process.env.PORT || 5000
 
 connectDB()
   .then(() => ensureAdmin())
-  .then(() => connectLegacyMongo()) // removed in Phase 2
   .then(() => {
-    app.listen(port, () => {
+    const server = app.listen(port, () => {
       console.log(`Server running on port ${port}`)
+    })
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use by another program. Stop it, or set PORT in server/.env `
+          + '(and point VITE_API_BASE_URL / the Vite proxy at the new port).')
+      } else {
+        console.error(error.message)
+      }
+      process.exit(1)
     })
   })
   .catch((error) => {

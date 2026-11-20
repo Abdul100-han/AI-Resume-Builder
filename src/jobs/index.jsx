@@ -105,7 +105,7 @@ function JobMatches() {
         setResults(resp.data.results || [])
         setSkills(resp.data.skills || [])
       })
-      .catch(() => setError('Could not load job matches. Start the API server and MongoDB, then refresh.'))
+      .catch(() => setError('Could not load job matches. Check that the API server is running and Supabase is configured, then refresh.'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -139,7 +139,7 @@ function JobMatches() {
       {error && <p className="mt-8 text-red-600">{error}</p>}
 
       <div className="mt-8 grid gap-4">
-        {visible.map((result) => <MatchCard key={result.job._id} result={result} />)}
+        {visible.map((result) => <MatchCard key={result.job.id} result={result} />)}
       </div>
 
       {!loading && !error && results.length > 0 && visible.length === 0 && (

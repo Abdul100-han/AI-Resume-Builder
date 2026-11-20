@@ -13,15 +13,15 @@ Admins log in to post, edit and delete vacancies.
 | Layer    | Technology                                   |
 |----------|----------------------------------------------|
 | Frontend | React 18, Vite, Tailwind CSS, shadcn/ui      |
-| Backend  | Node.js, Express, Mongoose                   |
-| Database | MongoDB                                      |
+| Backend  | Node.js, Express, `@supabase/supabase-js`    |
+| Database | Supabase (PostgreSQL)                        |
 | AI / NLP | Gemini API (CV writing); custom TF-IDF + skill matcher (no external NLP library) |
 
 ---
 
 ## 1. Setup
 
-**Requirements:** Node.js 18+ and MongoDB running locally (or a MongoDB Atlas connection string).
+**Requirements:** Node.js 18+ and a free [Supabase](https://supabase.com) project.
 
 ```bash
 # 1. Install dependencies (frontend + backend)
@@ -30,16 +30,22 @@ npm install --prefix server
 
 # 2. Environment files
 cp .env.example .env                 # frontend: optional Gemini key for AI writing
-cp server/.env.example server/.env   # backend: MongoDB URI, JWT secret, admin login
+cp server/.env.example server/.env   # backend: Supabase keys, JWT secret, admin login
 ```
+
+**3. Create the tables.** In the Supabase dashboard, open **SQL Editor → New query**, paste [`server/supabase-schema.sql`](server/supabase-schema.sql) and click **Run**. It is safe to run again.
 
 `server/.env` keys:
 
 | Key | Default | Purpose |
 |-----|---------|---------|
-| `MONGO_URI` | `mongodb://127.0.0.1:27017/ai-resume-builder` | Database |
+| `SUPABASE_URL` | — | Project URL (**Project Settings → API**) |
+| `SUPABASE_SERVICE_ROLE_KEY` | — | `service_role` secret key. Server only, never in the root `.env`. |
+| `PORT` | `5000` | API port |
 | `JWT_SECRET` | *(set your own)* | Signs admin login tokens |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@local.dev` / `admin123` | Admin account, created automatically |
+| `ADMIN_NAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `Admin` / `admin@local.dev` / `admin123` | Admin account, created automatically |
+
+**Tables:** `users`, `resumes`, `job_vacancies`. Nested data (education, experience, skills, profile) is stored as `jsonb`. Row Level Security is on with no policies, so only the API (using the service role key) can read or write.
 
 ## 2. Seed the demo data
 
@@ -154,11 +160,14 @@ Code: [`server/lib/nlpMatcher.js`](server/lib/nlpMatcher.js). It's called from [
 
 ```
 server/
+  supabase-schema.sql         tables, indexes, triggers (run in Supabase SQL Editor)
   seed.js                     demo data (Kano State Polytechnic)
+  config/db.js                Supabase client
+  lib/mappers.js              snake_case rows <-> camelCase API objects
+  lib/userStore.js            shared user lookups
   lib/nlpMatcher.js           NLP pipeline + scoring
   lib/nlpMatcher.test.js      unit tests
   controllers/                auth, jobs, match, profile, resumes
-  models/                     User, Resume, JobVacancy
 src/
   profile/                    student profile + demo account switcher
   dashboard/resume/           CV editor, preview, templates/, TemplateSelector

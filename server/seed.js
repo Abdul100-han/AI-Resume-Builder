@@ -1,5 +1,5 @@
 /* eslint-env node */
-// Demo data for the Kano State Polytechnic case study.
+// Demo data for the Kano State Polytechnic case study (Supabase).
 //
 //   npm run seed            insert anything that is missing (safe to run repeatedly)
 //   npm run seed -- --reset also restore demo records that were edited during testing
@@ -7,13 +7,9 @@
 // Only records owned by this script are touched: vacancies are matched by title + company,
 // students by their demo email, and CVs by a fixed resumeId. Nothing else is deleted.
 import dotenv from 'dotenv'
-import mongoose from 'mongoose'
-import connectDB from './config/db.js'
-import { connectLegacyMongo } from './config/legacyMongo.js'
+import connectDB, { getSupabase } from './config/db.js'
 import { ensureAdmin } from './controllers/authController.js'
-import JobVacancy from './models/JobVacancy.js'
-import Resume from './models/Resume.js'
-import User from './models/User.js'
+import { jobToRow, resumeToRow, unwrap, userToRow } from './lib/mappers.js'
 
 dotenv.config()
 
@@ -210,34 +206,45 @@ const STUDENTS = [
     },
   },
 ]
+// Insert the row if no row matches `filter`; with --reset, overwrite the match instead.
+// Returns { id, status } where status is 'added', 'reset' or 'exists'.
+async function upsertBy(table, filter, row) {
+  const supabase = getSupabase()
+  let query = supabase.from(table).select('id')
+  for (const [column, value] of Object.entries(filter)) query = query.eq(column, value)
+  const existing = unwrap(await query.limit(1).maybeSingle())
 
-// Insert-if-missing by default; overwrite only with --reset.
-const upsert = (Model, filter, doc) =>
-  Model.findOneAndUpdate(filter, RESET ? { $set: doc } : { $setOnInsert: doc }, {
-    upsert: true,
-    new: true,
-    setDefaultsOnInsert: true,
-    includeResultMetadata: true,
-  })
-
-const created = (result) => !result.lastErrorObject?.updatedExisting
+  if (!existing) {
+    const inserted = unwrap(await supabase.from(table).insert(row).select('id').single())
+    return { id: inserted.id, status: 'added' }
+  }
+  if (RESET) {
+    unwrap(await supabase.from(table).update(row).eq('id', existing.id))
+    return { id: existing.id, status: 'reset' }
+  }
+  return { id: existing.id, status: 'exists' }
+}
 
 async function seed() {
   await connectDB()
-  await ensureAdmin() // admin now lives in Supabase
-  // Vacancies, students and CVs are still Mongo models until Phase 2 rewrites this script.
-  if (!(await connectLegacyMongo())) throw new Error('Seeding vacancies and CVs still needs MONGO_URI until Phase 2.')
-  const admin = await User.findOne({ role: 'admin' })
+  await ensureAdmin()
+  const admin = unwrap(await getSupabase()
+    .from('users')
+    .select('id')
+    .eq('role', 'admin')
+    .order('created_at')
+    .limit(1)
+    .maybeSingle())
 
-  console.log(`\nSeeding demo data (${RESET ? 'reset mode' : 'insert missing only'})`)
+  console.log(`\nSeeding demo data into Supabase (${RESET ? 'reset mode' : 'insert missing only'})`)
 
   for (const job of JOBS) {
-    const result = await upsert(
-      JobVacancy,
-      { jobTitle: job.jobTitle, company: job.company },
-      { ...job, postedBy: admin?._id }
+    const { status } = await upsertBy(
+      'job_vacancies',
+      { job_title: job.jobTitle, company: job.company },
+      jobToRow({ ...job, postedBy: admin?.id ?? null })
     )
-    console.log(`  job     ${created(result) ? 'added   ' : RESET ? 'reset   ' : 'exists  '} ${job.jobTitle} – ${job.company}`)
+    console.log(`  job     ${status.padEnd(7)} ${job.jobTitle} – ${job.company}`)
   }
 
   const resumeLinks = []
@@ -246,7 +253,7 @@ async function seed() {
     const [firstName, ...rest] = profile.fullName.split(' ')
     const lastName = rest.join(' ')
 
-    const userResult = await upsert(User, { email: student.email }, {
+    const user = await upsertBy('users', { email: student.email }, userToRow({
       name: profile.fullName,
       email: student.email,
       role: 'student',
@@ -255,11 +262,10 @@ async function seed() {
       experience: resume.experience,
       skills: resume.skills,
       studentProfile: { ...profile, contactEmail: student.email, institution: INSTITUTION },
-    })
-    const user = userResult.value
+    }))
 
-    const resumeResult = await upsert(Resume, { user: user._id, resumeId: student.resumeId }, {
-      user: user._id,
+    const cv = await upsertBy('resumes', { user_id: user.id, resume_id: student.resumeId }, resumeToRow({
+      userId: user.id,
       resumeId: student.resumeId,
       title: `${profile.fullName} – CV`,
       template: student.template,
@@ -268,9 +274,9 @@ async function seed() {
       lastName,
       email: student.email,
       ...resume,
-    })
-    console.log(`  student ${created(userResult) ? 'added   ' : RESET ? 'reset   ' : 'exists  '} ${profile.fullName} <${student.email}>`)
-    resumeLinks.push(`  ${profile.fullName.padEnd(22)} /my-resume/${resumeResult.value._id}/view`)
+    }))
+    console.log(`  student ${user.status.padEnd(7)} ${profile.fullName} <${student.email}>`)
+    resumeLinks.push(`  ${profile.fullName.padEnd(22)} /my-resume/${cv.id}/view`)
   }
 
   console.log('\nDemo CVs (open on the frontend, e.g. http://localhost:5173):')
@@ -279,9 +285,7 @@ async function seed() {
   console.log('Demo students: open /profile in development and use "Demo accounts" to switch.\n')
 }
 
-seed()
-  .catch((error) => {
-    console.error(`Seed failed: ${error.message}`)
-    process.exitCode = 1
-  })
-  .finally(() => mongoose.disconnect())
+seed().catch((error) => {
+  console.error(`Seed failed: ${error.message}`)
+  process.exitCode = 1
+})

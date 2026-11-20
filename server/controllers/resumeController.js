@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto'
-import mongoose from 'mongoose'
-import Resume from '../models/Resume.js'
-import User from '../models/User.js'
+import { getSupabase } from '../config/db.js'
 import { profileSeed } from '../lib/studentProfile.js'
+import { isUuid, resumeFromRow, resumeToRow, unwrap } from '../lib/mappers.js'
+import { findOrCreateStudent, findUserByEmail, normalizeEmail, updateUser } from '../lib/userStore.js'
 
 const cleanSkills = (skills = []) =>
   (Array.isArray(skills) ? skills : [])
@@ -40,40 +40,31 @@ const cleanExperience = (items) =>
 const TEMPLATES = ['classic', 'modern']
 const cleanTemplate = (value) => (TEMPLATES.includes(value) ? value : 'classic')
 
-const ownerEmail = (value) => String(value || '').toLowerCase().trim()
+const notFound = (res) => res.status(404).json({ message: 'Resume not found' })
 
-const findOrCreateStudent = async (email, name) => {
-  let user = await User.findOne({ email })
-  if (!user) {
-    user = await User.create({
-      name: name || 'Guest',
-      email,
-      role: 'student',
-    })
-  }
-  return user
+const resumes = () => getSupabase().from('resumes')
+
+// A resume the given student owns, or null.
+async function findOwnedResume(id, user) {
+  if (!user || !isUuid(id)) return null
+  const row = unwrap(await resumes().select('*').eq('id', id).eq('user_id', user.id).maybeSingle())
+  return resumeFromRow(row)
 }
 
-const mirrorStudent = async (user, resume, body) => {
+// Keep the student's account in step with their latest CV edits, so job matching
+// and new CVs see the same skills, education and experience.
+async function mirrorStudent(user, resume, body) {
   if (!user || user.role !== 'student') return
 
-  let changed = false
-  if (body.skills !== undefined) {
-    user.skills = resume.skills
-    changed = true
-  }
-  if (body.education !== undefined) {
-    user.education = resume.education
-    changed = true
-  }
-  if (body.experience !== undefined || body.Experience !== undefined) {
-    user.experience = resume.experience
-    changed = true
-  }
+  const changes = {}
+  if (body.skills !== undefined) changes.skills = resume.skills
+  if (body.education !== undefined) changes.education = resume.education
+  if (body.experience !== undefined || body.Experience !== undefined) changes.experience = resume.experience
 
   const personalKeys = ['firstName', 'lastName', 'phone', 'address', 'jobTitle']
+  let profile = null
   if (personalKeys.some((key) => body[key] !== undefined)) {
-    user.personalInfo = {
+    changes.personalInfo = {
       firstName: resume.firstName,
       lastName: resume.lastName,
       phone: resume.phone,
@@ -81,53 +72,51 @@ const mirrorStudent = async (user, resume, body) => {
       jobTitle: resume.jobTitle,
     }
     const fullName = [resume.firstName, resume.lastName].filter(Boolean).join(' ').trim()
-    const profile = { ...(user.studentProfile?.toObject?.() || user.studentProfile || {}) }
     if (fullName) {
-      user.name = fullName
-      profile.fullName = fullName
+      changes.name = fullName
+      profile = { ...(user.studentProfile || {}), fullName }
     }
-    user.studentProfile = profile
-    changed = true
   }
-
   if (body.email !== undefined && resume.email) {
-    const profile = { ...(user.studentProfile?.toObject?.() || user.studentProfile || {}) }
-    profile.contactEmail = resume.email
-    user.studentProfile = profile
-    changed = true
+    profile = { ...(profile || user.studentProfile || {}), contactEmail: resume.email }
   }
+  if (profile) changes.studentProfile = profile
 
-  if (changed) await user.save()
+  if (Object.keys(changes).length) await updateUser(user.id, changes)
 }
 
 export const createResume = async (req, res) => {
   try {
-    const email = ownerEmail(req.body.email)
+    const email = normalizeEmail(req.body.email)
     const title = String(req.body.title || '').trim()
     if (!email || !title) {
       return res.status(400).json({ message: 'email and title are required' })
     }
 
     const user = await findOrCreateStudent(email, req.body.name)
+    // Pre-fill the new CV from the student profile (name, department, skills, …).
     const seed = profileSeed(user)
-    const resume = await Resume.create({
-      user: user._id,
-      title,
-      resumeId: randomUUID(),
-      themeColor: '#0f6b5e',
-      template: cleanTemplate(req.body.template),
-      firstName: seed?.firstName,
-      lastName: seed?.lastName,
-      jobTitle: seed?.jobTitle,
-      address: seed?.address,
-      email: seed?.email,
-      summery: seed?.summery,
-      experience: [],
-      education: seed?.education || [],
-      skills: seed?.skills || [],
-    })
+    const row = unwrap(await resumes()
+      .insert(resumeToRow({
+        userId: user.id,
+        resumeId: randomUUID(),
+        title,
+        themeColor: '#0f6b5e',
+        template: cleanTemplate(req.body.template),
+        firstName: seed?.firstName,
+        lastName: seed?.lastName,
+        jobTitle: seed?.jobTitle,
+        address: seed?.address,
+        email: seed?.email,
+        summery: seed?.summery,
+        experience: [],
+        education: seed?.education || [],
+        skills: seed?.skills || [],
+      }))
+      .select('*')
+      .single())
 
-    return res.status(201).json(resume)
+    return res.status(201).json(resumeFromRow(row))
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -135,35 +124,27 @@ export const createResume = async (req, res) => {
 
 export const getResumes = async (req, res) => {
   try {
-    const email = ownerEmail(req.query.email)
+    const email = normalizeEmail(req.query.email)
     if (!email) {
       return res.status(400).json({ message: 'email is required' })
     }
 
-    const user = await User.findOne({ email })
-    if (!user) {
-      return res.json([])
-    }
+    const user = await findUserByEmail(email)
+    if (!user) return res.json([])
 
-    const resumes = await Resume.find({ user: user._id }).sort({ updatedAt: -1 })
-    return res.json(resumes)
+    const rows = unwrap(await resumes().select('*').eq('user_id', user.id).order('updated_at', { ascending: false }))
+    return res.json(rows.map(resumeFromRow))
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
 }
 
+// Public: anyone with the link can view a CV.
 export const getResumeById = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(404).json({ message: 'Resume not found' })
-    }
-
-    const resume = await Resume.findById(req.params.id)
-    if (!resume) {
-      return res.status(404).json({ message: 'Resume not found' })
-    }
-
-    return res.json(resume)
+    if (!isUuid(req.params.id)) return notFound(res)
+    const row = unwrap(await resumes().select('*').eq('id', req.params.id).maybeSingle())
+    return row ? res.json(resumeFromRow(row)) : notFound(res)
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -171,43 +152,39 @@ export const getResumeById = async (req, res) => {
 
 export const updateResume = async (req, res) => {
   try {
-    const email = ownerEmail(req.query.email)
+    const email = normalizeEmail(req.query.email)
     if (!email) {
       return res.status(400).json({ message: 'email is required' })
     }
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(404).json({ message: 'Resume not found' })
-    }
 
-    const user = await User.findOne({ email })
-    const resume = user
-      ? await Resume.findOne({ _id: req.params.id, user: user._id })
-      : null
-    if (!resume) {
-      return res.status(404).json({ message: 'Resume not found' })
-    }
+    const user = await findUserByEmail(email)
+    const resume = await findOwnedResume(req.params.id, user)
+    if (!resume) return notFound(res)
 
-    const scalarFields = ['title', 'themeColor', 'firstName', 'lastName', 'jobTitle', 'address', 'phone', 'email']
-    for (const field of scalarFields) {
-      if (req.body[field] !== undefined) resume[field] = req.body[field]
+    const changes = {}
+    for (const field of ['title', 'themeColor', 'firstName', 'lastName', 'jobTitle', 'address', 'phone', 'email']) {
+      if (req.body[field] !== undefined) changes[field] = req.body[field]
     }
-    if (req.body.template !== undefined) resume.template = cleanTemplate(req.body.template)
-    if (req.body.summery !== undefined) resume.summery = req.body.summery
-    else if (req.body.summary !== undefined) resume.summery = req.body.summary
-
+    if (req.body.template !== undefined) changes.template = cleanTemplate(req.body.template)
+    if (req.body.summery !== undefined) changes.summery = req.body.summery
+    else if (req.body.summary !== undefined) changes.summery = req.body.summary
     if (req.body.experience !== undefined || req.body.Experience !== undefined) {
-      resume.experience = cleanExperience(req.body.experience ?? req.body.Experience)
+      changes.experience = cleanExperience(req.body.experience ?? req.body.Experience)
     }
-    if (req.body.education !== undefined) {
-      resume.education = cleanEducation(req.body.education)
-    }
-    if (req.body.skills !== undefined) {
-      resume.skills = cleanSkills(req.body.skills)
-    }
+    if (req.body.education !== undefined) changes.education = cleanEducation(req.body.education)
+    if (req.body.skills !== undefined) changes.skills = cleanSkills(req.body.skills)
 
-    await resume.save()
-    await mirrorStudent(user, resume, req.body)
-    return res.json(resume)
+    if (!Object.keys(changes).length) return res.json(resume)
+
+    const row = unwrap(await resumes()
+      .update(resumeToRow(changes))
+      .eq('id', resume.id)
+      .select('*')
+      .single())
+    const saved = resumeFromRow(row)
+
+    await mirrorStudent(user, saved, req.body)
+    return res.json(saved)
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -215,31 +192,25 @@ export const updateResume = async (req, res) => {
 
 export const deleteResume = async (req, res) => {
   try {
-    const email = ownerEmail(req.query.email)
+    const email = normalizeEmail(req.query.email)
     if (!email) {
       return res.status(400).json({ message: 'email is required' })
     }
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(404).json({ message: 'Resume not found' })
-    }
 
-    const user = await User.findOne({ email })
-    const resume = user
-      ? await Resume.findOneAndDelete({ _id: req.params.id, user: user._id })
-      : null
-    if (!resume) {
-      return res.status(404).json({ message: 'Resume not found' })
-    }
+    const user = await findUserByEmail(email)
+    if (!user || !isUuid(req.params.id)) return notFound(res)
 
-    return res.json({ message: 'Resume deleted' })
+    const rows = unwrap(await resumes().delete().eq('id', req.params.id).eq('user_id', user.id).select('id'))
+    return rows.length ? res.json({ message: 'Resume deleted' }) : notFound(res)
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
 }
 
+// Create-or-replace a CV by its client-side resumeId, and copy its details onto the student.
 export const syncResume = async (req, res) => {
   try {
-    const email = ownerEmail(req.body.email)
+    const email = normalizeEmail(req.body.email)
     const resumeId = req.body.resumeId?.trim()
     if (!email || !resumeId) {
       return res.status(400).json({ message: 'email and resumeId are required' })
@@ -248,62 +219,43 @@ export const syncResume = async (req, res) => {
     const skills = cleanSkills(req.body.skills)
     const education = cleanEducation(req.body.education)
     const experience = cleanExperience(req.body.experience ?? req.body.Experience)
+    const personalInfo = {
+      firstName: req.body.firstName,
+      lastName: req.body.lastName,
+      phone: req.body.phone,
+      address: req.body.address,
+      jobTitle: req.body.jobTitle,
+    }
 
-    let user = await User.findOne({ email })
-    if (!user) {
-      user = await User.create({
-        name: req.body.name || 'Guest',
-        email,
-        role: 'student',
+    let user = await findOrCreateStudent(email, req.body.name)
+    if (user.role === 'student') {
+      user = await updateUser(user.id, {
+        name: req.body.name || user.name,
         skills,
         education,
         experience,
-        personalInfo: {
-          firstName: req.body.firstName,
-          lastName: req.body.lastName,
-          phone: req.body.phone,
-          address: req.body.address,
-          jobTitle: req.body.jobTitle,
-        },
+        personalInfo,
       })
-    } else if (user.role === 'student') {
-      user.name = req.body.name || user.name
-      user.skills = skills
-      user.education = education
-      user.experience = experience
-      user.personalInfo = {
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        phone: req.body.phone,
-        address: req.body.address,
-        jobTitle: req.body.jobTitle,
-      }
-      await user.save()
     }
 
-    const resume = await Resume.findOneAndUpdate(
-      { user: user._id, resumeId },
-      {
-        user: user._id,
+    const row = unwrap(await resumes()
+      .upsert(resumeToRow({
+        userId: user.id,
         resumeId,
         title: req.body.title || 'Untitled Resume',
         themeColor: req.body.themeColor,
         ...(req.body.template !== undefined && { template: cleanTemplate(req.body.template) }),
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        jobTitle: req.body.jobTitle,
-        address: req.body.address,
-        phone: req.body.phone,
+        ...personalInfo,
         email: req.body.contactEmail,
         summery: req.body.summery ?? req.body.summary,
         experience,
         education,
         skills,
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    )
+      }), { onConflict: 'user_id,resume_id' })
+      .select('*')
+      .single())
 
-    return res.json(resume)
+    return res.json(resumeFromRow(row))
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }

@@ -1,4 +1,3 @@
-import User from '../models/User.js'
 import {
   normalizeStudentProfile,
   publicStudent,
@@ -6,18 +5,20 @@ import {
   splitName,
   validateStudentProfile,
 } from '../lib/studentProfile.js'
+import { findUserByEmail, insertUser, normalizeEmail, updateUser } from '../lib/userStore.js'
 
-const ownerEmail = (value) => String(value || '').toLowerCase().trim()
+// publicStudent() reads the id from `_id`; pass the Supabase uuid through explicitly.
+const respond = (user, email) => ({ ...publicStudent(user, email), id: user?.id })
 
 export const getProfile = async (req, res) => {
   try {
-    const email = ownerEmail(req.query.email)
+    const email = normalizeEmail(req.query.email)
     if (!email) {
       return res.status(400).json({ message: 'email is required' })
     }
 
-    const user = await User.findOne({ email }).select('-password')
-    return res.json(publicStudent(user, email))
+    const user = await findUserByEmail(email)
+    return res.json(respond(user, email))
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }
@@ -25,7 +26,7 @@ export const getProfile = async (req, res) => {
 
 export const saveProfile = async (req, res) => {
   try {
-    const email = ownerEmail(req.body.email)
+    const email = normalizeEmail(req.body.email)
     if (!email) {
       return res.status(400).json({ message: 'email is required' })
     }
@@ -36,39 +37,36 @@ export const saveProfile = async (req, res) => {
       return res.status(400).json({ message })
     }
 
-    let user = await User.findOne({ email })
+    const user = await findUserByEmail(email)
     if (user?.role === 'admin') {
       return res.status(403).json({ message: 'Admin accounts do not use the student profile' })
     }
 
-    if (!user) {
-      user = new User({
-        name: studentProfile.fullName,
-        email,
-        role: 'student',
-      })
-    }
-
     const { firstName, lastName } = splitName(studentProfile.fullName)
-    const currentInfo = user.personalInfo?.toObject?.() || { ...(user.personalInfo || {}) }
+    const currentInfo = user?.personalInfo || {}
     const primaryRole = studentProfile.targetRoles.split(',')[0].trim()
 
-    user.name = studentProfile.fullName
-    user.studentProfile = studentProfile
-    user.personalInfo = {
-      ...currentInfo,
-      firstName,
-      lastName,
-      jobTitle: primaryRole || currentInfo.jobTitle || '',
+    const changes = {
+      name: studentProfile.fullName,
+      studentProfile,
+      personalInfo: {
+        ...currentInfo,
+        firstName,
+        lastName,
+        jobTitle: primaryRole || currentInfo.jobTitle || '',
+      },
     }
 
+    // Seed the skills list from the profile summary only if the student has none yet.
     const parsedSkills = skillsFromSummary(studentProfile.skillsSummary)
-    if (parsedSkills.length && !(user.skills || []).length) {
-      user.skills = parsedSkills
+    if (parsedSkills.length && !(user?.skills || []).length) {
+      changes.skills = parsedSkills
     }
 
-    await user.save()
-    return res.json(publicStudent(user, email))
+    const saved = user
+      ? await updateUser(user.id, changes)
+      : await insertUser({ ...changes, email, role: 'student' })
+    return res.json(respond(saved, email))
   } catch (error) {
     return res.status(500).json({ message: error.message })
   }

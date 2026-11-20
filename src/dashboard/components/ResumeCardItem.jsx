@@ -36,7 +36,7 @@ function ResumeCardItem({resume,refreshData}) {
 
   const onDelete=()=>{
     setLoading(true);
-    BackendApi.deleteResume(resume._id, getLocalUser().email).then(()=>{
+    BackendApi.deleteResume(resume.id, getLocalUser().email).then(()=>{
       toast('Resume Deleted!');
       refreshData()
       setLoading(false);
@@ -49,7 +49,7 @@ function ResumeCardItem({resume,refreshData}) {
   return (
     
        <div className=''>
-          <Link to={'/dashboard/resume/'+resume._id+"/edit"}>
+          <Link to={'/dashboard/resume/'+resume.id+"/edit"}>
         <div className='p-14  bg-gradient-to-b
           from-pink-100 via-purple-200 to-blue-200
         h-[280px] 
@@ -78,9 +78,9 @@ function ResumeCardItem({resume,refreshData}) {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
            
-            <DropdownMenuItem  onClick={()=>navigation('/dashboard/resume/'+resume._id+"/edit")}>Edit</DropdownMenuItem>
-            <DropdownMenuItem onClick={()=>navigation('/my-resume/'+resume._id+"/view")}>View</DropdownMenuItem>
-            <DropdownMenuItem onClick={()=>navigation('/my-resume/'+resume._id+"/view")}>Download</DropdownMenuItem>
+            <DropdownMenuItem  onClick={()=>navigation('/dashboard/resume/'+resume.id+"/edit")}>Edit</DropdownMenuItem>
+            <DropdownMenuItem onClick={()=>navigation('/my-resume/'+resume.id+"/view")}>View</DropdownMenuItem>
+            <DropdownMenuItem onClick={()=>navigation('/my-resume/'+resume.id+"/view")}>Download</DropdownMenuItem>
             <DropdownMenuItem onClick={()=>setOpenAlert(true)}>Delete</DropdownMenuItem>
             
           </DropdownMenuContent>

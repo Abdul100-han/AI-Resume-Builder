@@ -84,7 +84,7 @@ function AdminDashboard() {
   }
 
   const onEdit = (job) => {
-    setEditingId(job._id)
+    setEditingId(job.id)
     setForm({
       jobTitle: job.jobTitle,
       company: job.company,
@@ -95,9 +95,9 @@ function AdminDashboard() {
 
   const onDelete = (job) => {
     if (!window.confirm(`Delete ${job.jobTitle} at ${job.company}?`)) return
-    BackendApi.deleteJob(job._id)
+    BackendApi.deleteJob(job.id)
       .then(() => {
-        if (editingId === job._id) {
+        if (editingId === job.id) {
           setEditingId(null)
           setForm(emptyForm)
         }
@@ -154,7 +154,7 @@ function AdminDashboard() {
 
       <div className="mt-8 grid gap-4">
         {jobs.map((job) => (
-          <div key={job._id} className="border rounded-lg p-5">
+          <div key={job.id} className="border rounded-lg p-5">
             <div className="flex justify-between gap-4">
               <div>
                 <h3 className="font-semibold text-lg">{job.jobTitle}</h3>

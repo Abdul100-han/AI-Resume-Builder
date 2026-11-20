@@ -55,7 +55,7 @@ function StudentProfile() {
       })
       .catch(() => {
         setForm(emptyProfile)
-        toast('Could not load the profile. Start the API server and MongoDB, then refresh.')
+        toast('Could not load the profile. Check that the API server is running and Supabase is configured, then refresh.')
       })
   }, [])
 
