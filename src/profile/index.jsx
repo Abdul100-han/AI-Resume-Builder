@@ -32,6 +32,7 @@ const emptyProfile = {
 }
 
 const fieldClass = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm'
+const SAVED_FLAG = 'resume-builder-profile-saved'
 
 function StudentProfile() {
   const [ownerEmail, setOwnerEmail] = useState('')
@@ -40,6 +41,10 @@ function StudentProfile() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    if (sessionStorage.getItem(SAVED_FLAG)) {
+      sessionStorage.removeItem(SAVED_FLAG)
+      toast('Student profile saved')
+    }
     const user = getLocalUser()
     setOwnerEmail(user.email)
     BackendApi.getProfile(user.email)
@@ -72,7 +77,8 @@ function StudentProfile() {
     })
       .then((resp) => {
         saveLocalUser({ name: resp.data.name })
-        toast('Student profile saved')
+        sessionStorage.setItem(SAVED_FLAG, '1')
+        window.location.reload()
       })
       .catch((error) => {
         toast(error.response?.data?.message || 'Could not save the profile')
