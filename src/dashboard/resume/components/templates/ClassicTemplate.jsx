@@ -4,9 +4,10 @@ import SummeryPreview from '../preview/SummeryPreview'
 import ExperiencePreview from '../preview/ExperiencePreview'
 import EducationalPreview from '../preview/EducationalPreview'
 import SkillsPreview from '../preview/SkillsPreview'
+import CertificationsPreview from '../preview/CertificationsPreview'
+import ProjectsPreview from '../preview/ProjectsPreview'
 import { DEFAULT_THEME } from './templates'
 
-// The original single-column layout.
 function ClassicTemplate({ resumeInfo }) {
   return (
     <div
@@ -15,9 +16,11 @@ function ClassicTemplate({ resumeInfo }) {
     >
       <PersonalDetailPreview resumeInfo={resumeInfo} />
       <SummeryPreview resumeInfo={resumeInfo} />
-      {(resumeInfo?.experience ?? []).length > 0 && <ExperiencePreview resumeInfo={resumeInfo} />}
-      {(resumeInfo?.education ?? []).length > 0 && <EducationalPreview resumeInfo={resumeInfo} />}
-      {(resumeInfo?.skills ?? []).length > 0 && <SkillsPreview resumeInfo={resumeInfo} />}
+      <ExperiencePreview resumeInfo={resumeInfo} />
+      <EducationalPreview resumeInfo={resumeInfo} />
+      <ProjectsPreview resumeInfo={resumeInfo} />
+      <CertificationsPreview resumeInfo={resumeInfo} />
+      <SkillsPreview resumeInfo={resumeInfo} />
     </div>
   )
 }

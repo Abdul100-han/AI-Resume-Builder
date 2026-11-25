@@ -19,7 +19,7 @@ const toSummaryList = (parsed) => {
 }
 function Summery({enabledNext}) {
     const {resumeInfo,setResumeInfo}=useContext(ResumeInfoContext);
-    const [summery,setSummery]=useState();
+    const [summery,setSummery]=useState(() => resumeInfo?.summery ?? '');
     const [loading,setLoading]=useState(false);
     const params=useParams();
     const [aiGeneratedSummeryList,setAiGenerateSummeryList]=useState();
@@ -63,8 +63,8 @@ function Summery({enabledNext}) {
     return (
     <div>
          <div className='p-5 shadow-lg rounded-lg border-t-primary border-t-4 mt-10'>
-        <h2 className='font-bold text-lg'>Summery</h2>
-        <p>Add Summery for your job title</p>
+        <h2 className='font-bold text-lg'>Professional Summary</h2>
+        <p>Write a short professional summary for the role you want.</p>
 
         <form className='mt-7' onSubmit={onSave}>
             <div className='flex justify-between items-end'>
@@ -75,7 +75,6 @@ function Summery({enabledNext}) {
             </div>
             <Textarea className="mt-5" required
             value={summery}
-                defaultValue={summery?summery:resumeInfo?.summery}
             onChange={(e)=>setSummery(e.target.value)}
             />
             <div className='mt-2 flex justify-end'>

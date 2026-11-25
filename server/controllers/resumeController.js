@@ -4,6 +4,8 @@ import { profileSeed } from '../lib/studentProfile.js'
 import { isUuid, resumeFromRow, resumeToRow, unwrap } from '../lib/mappers.js'
 import { findOrCreateStudent, findUserByEmail, normalizeEmail, updateUser } from '../lib/userStore.js'
 
+const filled = (item, keys) => keys.some((key) => String(item?.[key] || '').replace(/<[^>]*>/g, '').trim())
+
 const cleanSkills = (skills = []) =>
   (Array.isArray(skills) ? skills : [])
     .map((skill) => {
@@ -16,26 +18,52 @@ const cleanSkills = (skills = []) =>
     .filter((skill) => skill.name)
 
 const cleanEducation = (items) =>
-  (Array.isArray(items) ? items : []).map((item) => ({
-    universityName: item?.universityName || '',
-    degree: item?.degree || '',
-    major: item?.major || '',
-    startDate: item?.startDate || '',
-    endDate: item?.endDate || '',
-    description: item?.description || '',
-  }))
+  (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      universityName: item?.universityName || '',
+      degree: item?.degree || '',
+      major: item?.major || '',
+      startDate: item?.startDate || '',
+      endDate: item?.endDate || '',
+      description: item?.description || '',
+    }))
+    .filter((item) => filled(item, ['universityName', 'degree', 'major', 'description']))
 
 const cleanExperience = (items) =>
-  (Array.isArray(items) ? items : []).map((item) => ({
-    title: item?.title || '',
-    companyName: item?.companyName || '',
-    city: item?.city || '',
-    state: item?.state || '',
-    startDate: item?.startDate || '',
-    endDate: item?.currentlyWorking ? '' : item?.endDate || '',
-    currentlyWorking: Boolean(item?.currentlyWorking),
-    workSummery: item?.workSummery || '',
-  }))
+  (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      title: item?.title || '',
+      companyName: item?.companyName || '',
+      city: item?.city || '',
+      state: item?.state || '',
+      startDate: item?.startDate || '',
+      endDate: item?.currentlyWorking ? '' : item?.endDate || '',
+      currentlyWorking: Boolean(item?.currentlyWorking),
+      workSummery: item?.workSummery || '',
+    }))
+    .filter((item) => filled(item, ['title', 'companyName', 'workSummery']))
+
+const cleanCertifications = (items) =>
+  (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      name: item?.name || '',
+      issuer: item?.issuer || '',
+      date: item?.date || '',
+      credentialId: item?.credentialId || '',
+    }))
+    .filter((item) => filled(item, ['name', 'issuer', 'credentialId']))
+
+const cleanProjects = (items) =>
+  (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      name: item?.name || '',
+      role: item?.role || '',
+      startDate: item?.startDate || '',
+      endDate: item?.endDate || '',
+      url: item?.url || '',
+      description: item?.description || '',
+    }))
+    .filter((item) => filled(item, ['name', 'role', 'url', 'description']))
 
 const TEMPLATES = ['classic', 'modern']
 const cleanTemplate = (value) => (TEMPLATES.includes(value) ? value : 'classic')
@@ -112,6 +140,8 @@ export const createResume = async (req, res) => {
         experience: [],
         education: seed?.education || [],
         skills: seed?.skills || [],
+        certifications: [],
+        projects: [],
       }))
       .select('*')
       .single())
@@ -173,6 +203,8 @@ export const updateResume = async (req, res) => {
     }
     if (req.body.education !== undefined) changes.education = cleanEducation(req.body.education)
     if (req.body.skills !== undefined) changes.skills = cleanSkills(req.body.skills)
+    if (req.body.certifications !== undefined) changes.certifications = cleanCertifications(req.body.certifications)
+    if (req.body.projects !== undefined) changes.projects = cleanProjects(req.body.projects)
 
     if (!Object.keys(changes).length) return res.json(resume)
 
@@ -219,6 +251,8 @@ export const syncResume = async (req, res) => {
     const skills = cleanSkills(req.body.skills)
     const education = cleanEducation(req.body.education)
     const experience = cleanExperience(req.body.experience ?? req.body.Experience)
+    const certifications = cleanCertifications(req.body.certifications)
+    const projects = cleanProjects(req.body.projects)
     const personalInfo = {
       firstName: req.body.firstName,
       lastName: req.body.lastName,
@@ -251,6 +285,8 @@ export const syncResume = async (req, res) => {
         experience,
         education,
         skills,
+        certifications,
+        projects,
       }), { onConflict: 'user_id,resume_id' })
       .select('*')
       .single())

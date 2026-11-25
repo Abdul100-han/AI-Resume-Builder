@@ -1,6 +1,13 @@
 /* eslint-disable react/prop-types */
 import { Mail, MapPin, Phone } from 'lucide-react'
 import { DEFAULT_THEME } from './templates'
+import {
+  filledCertifications,
+  filledEducation,
+  filledExperience,
+  filledProjects,
+  filledSkills,
+} from '@/lib/resume'
 
 function SectionTitle({ color, children }) {
   return (
@@ -19,9 +26,12 @@ const dateRange = (start, end, current) =>
 // Two-column layout: tinted sidebar (contact, skills) + main column (profile, education, experience).
 function ModernTemplate({ resumeInfo }) {
   const color = resumeInfo?.themeColor || DEFAULT_THEME
-  const experience = resumeInfo?.experience ?? []
-  const education = resumeInfo?.education ?? []
-  const skills = resumeInfo?.skills ?? []
+  const experience = filledExperience(resumeInfo?.experience)
+  const education = filledEducation(resumeInfo?.education)
+  const skills = filledSkills(resumeInfo?.skills)
+  const certifications = filledCertifications(resumeInfo?.certifications)
+  const projects = filledProjects(resumeInfo?.projects)
+  const summary = String(resumeInfo?.summery || '').trim()
   const contacts = [
     { icon: Phone, value: resumeInfo?.phone },
     { icon: Mail, value: resumeInfo?.email },
@@ -83,10 +93,10 @@ function ModernTemplate({ resumeInfo }) {
         </aside>
 
         <main className='cv-column px-8 py-8 space-y-7'>
-          {resumeInfo?.summery && (
+          {summary && (
             <section>
-              <SectionTitle color={color}>Profile</SectionTitle>
-              <p className='text-xs leading-relaxed'>{resumeInfo.summery}</p>
+              <SectionTitle color={color}>Professional Summary</SectionTitle>
+              <p className='text-xs leading-relaxed'>{summary}</p>
             </section>
           )}
 
@@ -98,7 +108,7 @@ function ModernTemplate({ resumeInfo }) {
                   <div key={index} className='cv-entry'>
                     <div className='flex justify-between gap-3 text-sm'>
                       <h4 className='font-semibold'>
-                        {[item.degree, item.major].filter(Boolean).join(' in ')}
+                        {[item.degree, item.major].filter(Boolean).join(' in ') || item.universityName}
                       </h4>
                       <span className='text-xs text-slate-500 shrink-0'>{dateRange(item.startDate, item.endDate)}</span>
                     </div>
@@ -125,7 +135,48 @@ function ModernTemplate({ resumeInfo }) {
                     <p className='text-xs font-medium' style={{ color }}>
                       {[item.companyName, item.city, item.state].filter(Boolean).join(', ')}
                     </p>
-                    <div className='cv-rich text-xs mt-1' dangerouslySetInnerHTML={{ __html: item.workSummery }} />
+                    {item.workSummery && (
+                      <div className='cv-rich text-xs mt-1' dangerouslySetInnerHTML={{ __html: item.workSummery }} />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {projects.length > 0 && (
+            <section>
+              <SectionTitle color={color}>Projects</SectionTitle>
+              <div className='space-y-4'>
+                {projects.map((item, index) => (
+                  <div key={index} className='cv-entry'>
+                    <div className='flex justify-between gap-3 text-sm'>
+                      <h4 className='font-semibold'>{item.name}</h4>
+                      <span className='text-xs text-slate-500 shrink-0'>
+                        {[item.startDate, item.endDate].filter(Boolean).join(' – ')}
+                      </span>
+                    </div>
+                    {item.role && <p className='text-xs font-medium' style={{ color }}>{item.role}</p>}
+                    {item.url && <p className='text-xs break-all'>{item.url}</p>}
+                    {item.description && <p className='text-xs mt-1'>{item.description}</p>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {certifications.length > 0 && (
+            <section>
+              <SectionTitle color={color}>Certifications</SectionTitle>
+              <div className='space-y-3'>
+                {certifications.map((item, index) => (
+                  <div key={index} className='cv-entry'>
+                    <div className='flex justify-between gap-3 text-sm'>
+                      <h4 className='font-semibold'>{item.name}</h4>
+                      <span className='text-xs text-slate-500 shrink-0'>{item.date}</span>
+                    </div>
+                    {item.issuer && <p className='text-xs font-medium' style={{ color }}>{item.issuer}</p>}
+                    {item.credentialId && <p className='text-xs'>{item.credentialId}</p>}
                   </div>
                 ))}
               </div>

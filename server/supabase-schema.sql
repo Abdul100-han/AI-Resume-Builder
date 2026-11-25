@@ -65,7 +65,9 @@ create table if not exists public.resumes (
   summery      text,                                      -- spelling kept to match the frontend field
   experience   jsonb not null default '[]'::jsonb check (jsonb_typeof(experience) = 'array'),
   education    jsonb not null default '[]'::jsonb check (jsonb_typeof(education) = 'array'),
-  skills       jsonb not null default '[]'::jsonb check (jsonb_typeof(skills) = 'array'),
+  skills          jsonb not null default '[]'::jsonb check (jsonb_typeof(skills) = 'array'),
+  certifications  jsonb not null default '[]'::jsonb check (jsonb_typeof(certifications) = 'array'),
+  projects        jsonb not null default '[]'::jsonb check (jsonb_typeof(projects) = 'array'),
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now(),
   constraint resumes_user_resume_id_key unique (user_id, resume_id)
@@ -111,3 +113,7 @@ create trigger job_vacancies_set_updated_at
 alter table public.users         enable row level security;
 alter table public.resumes       enable row level security;
 alter table public.job_vacancies enable row level security;
+
+-- Existing projects created before certifications/projects: add the columns if missing.
+alter table public.resumes add column if not exists certifications jsonb not null default '[]'::jsonb;
+alter table public.resumes add column if not exists projects jsonb not null default '[]'::jsonb;

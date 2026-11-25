@@ -21,9 +21,10 @@ const formField={
 }
 function Experience() {
     const {resumeInfo,setResumeInfo}=useContext(ResumeInfoContext);
-    const [experinceList,setExperinceList]=useState(
-        () => resumeInfo?.experience ?? resumeInfo?.Experience ?? []
-    );
+    const [experinceList,setExperinceList]=useState(() => {
+        const existing = resumeInfo?.experience ?? resumeInfo?.Experience ?? []
+        return existing.length > 0 ? existing : [{ ...formField }]
+    });
     const params=useParams();
     const [loading,setLoading]=useState(false);
 

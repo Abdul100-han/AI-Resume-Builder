@@ -138,6 +138,24 @@ const STUDENTS = [
         { name: 'Git', rating: 3 },
         { name: 'MySQL', rating: 3 },
       ],
+      certifications: [
+        {
+          name: 'Google IT Support Certificate',
+          issuer: 'Coursera',
+          date: '2024-07-01',
+          credentialId: '',
+        },
+      ],
+      projects: [
+        {
+          name: 'Student Result Portal',
+          role: 'Full-stack developer',
+          startDate: '2025-01-01',
+          endDate: '2025-06-01',
+          url: '',
+          description: 'React and Node.js portal for lecturers to enter scores and students to view results.',
+        },
+      ],
     },
   },
   {
@@ -202,6 +220,24 @@ const STUDENTS = [
         { name: 'Troubleshooting', rating: 4 },
         { name: 'Networking', rating: 3 },
         { name: 'Microsoft Office', rating: 4 },
+      ],
+      certifications: [
+        {
+          name: 'Health and Safety (HSE) Awareness',
+          issuer: 'NYSC CDS',
+          date: '2025-03-01',
+          credentialId: '',
+        },
+      ],
+      projects: [
+        {
+          name: 'Solar-powered irrigation pump controller',
+          role: 'HND project lead',
+          startDate: '2024-01-01',
+          endDate: '2024-09-01',
+          url: '',
+          description: 'Low-cost controller for a solar irrigation pump used in a Kano farm demonstration.',
+        },
       ],
     },
   },

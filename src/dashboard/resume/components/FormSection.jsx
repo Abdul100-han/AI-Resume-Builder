@@ -6,6 +6,8 @@ import Summery from './forms/Summery';
 import Experience from './forms/Experience';
 import Education from './forms/Education';
 import Skills from './forms/Skills';
+import Certifications from './forms/Certifications';
+import Projects from './forms/Projects';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import ThemeColor from './ThemeColor';
 import TemplateSelector from './TemplateSelector';
@@ -49,6 +51,10 @@ function FormSection() {
           :activeFormIndex==5?
           <Skills/>
           :activeFormIndex==6?
+          <Certifications/>
+          :activeFormIndex==7?
+          <Projects/>
+          :activeFormIndex==8?
           <Navigate to={'/my-resume/'+resumeId+"/view"}/>
               
         :null

@@ -75,6 +75,8 @@ const RESUME_COLUMNS = {
   experience: 'experience',
   education: 'education',
   skills: 'skills',
+  certifications: 'certifications',
+  projects: 'projects',
 }
 
 export function resumeFromRow(row) {
@@ -96,6 +98,8 @@ export function resumeFromRow(row) {
     experience: arrayOr(row.experience),
     education: arrayOr(row.education),
     skills: arrayOr(row.skills),
+    certifications: arrayOr(row.certifications),
+    projects: arrayOr(row.projects),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
